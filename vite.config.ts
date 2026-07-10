@@ -1,4 +1,4 @@
-import { defineConfig } from "vite-plus";
+import { defineConfig } from 'vite-plus'
 
 export default defineConfig({
   pack: {
@@ -7,20 +7,20 @@ export default defineConfig({
     },
     exports: {
       customExports(pkgExports) {
-        const root = pkgExports["."];
-        if (typeof root === "string") {
-          pkgExports["."] = {
-            types: "./dist/index.d.mts",
+        const root = pkgExports['.']
+        if (typeof root === 'string') {
+          pkgExports['.'] = {
+            types: './dist/index.d.mts',
             import: root,
             default: root,
-          };
+          }
         }
-        return pkgExports;
+        return pkgExports
       },
     },
   },
   test: {
-    environment: "happy-dom",
+    environment: 'happy-dom',
   },
   lint: {
     options: {
@@ -28,5 +28,11 @@ export default defineConfig({
       typeCheck: true,
     },
   },
-  fmt: {},
-});
+  fmt: {
+    semi: false,
+    singleQuote: true,
+    sortImports: true,
+    jsxSingleQuote: true,
+    sortPackageJson: true,
+  },
+})

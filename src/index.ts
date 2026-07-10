@@ -1,13 +1,13 @@
-export { createBridge } from "./create-bridge.ts";
+export { createBridge } from './create-bridge.ts'
 export {
   BridgeError,
   BridgeNotAvailableError,
   BridgeProtocolError,
   BridgeTimeoutError,
-} from "./errors.ts";
+} from './errors.ts'
 export type {
   BridgePlatform,
   RequestOptions,
   UniBridgeCallPayload,
   WebviewBridge,
-} from "./types.ts";
+} from './types.ts'

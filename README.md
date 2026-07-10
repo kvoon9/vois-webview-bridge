@@ -14,30 +14,30 @@ pnpm add @vois/webview-bridge
 ## Usage
 
 ```ts
-import { createBridge, BridgeNotAvailableError } from "@vois/webview-bridge";
+import { createBridge, BridgeNotAvailableError } from '@vois/webview-bridge'
 
-const bridge = createBridge();
+const bridge = createBridge()
 
 // Optional: fail fast if not inside the app shell
-await bridge.ready;
+await bridge.ready
 
 // No response
-bridge.send("close-page");
+bridge.send('close-page')
 
 // Wait for native response (default timeout 60s)
-const res = await bridge.request<{ errcode: number; errmsg: string }>("ios-app-prepay", {
-  product_id: "sku_1",
-  product_name: "VIP",
-  product_desc: "VIP membership",
+const res = await bridge.request<{ errcode: number; errmsg: string }>('ios-app-prepay', {
+  product_id: 'sku_1',
+  product_name: 'VIP',
+  product_desc: 'VIP membership',
   amount: 1,
-  currency: "CNY",
-});
+  currency: 'CNY',
+})
 ```
 
 ### Request options
 
 ```ts
-await bridge.request("some-type", { foo: 1 }, { timeout: 120_000 });
+await bridge.request('some-type', { foo: 1 }, { timeout: 120_000 })
 // timeout: 0 | Infinity → no timeout
 ```
 
@@ -58,11 +58,21 @@ Business `errcode` values stay in the resolved payload; the library does not int
 - **ESM only** — consume via a bundler (`import` from `@vois/webview-bridge`).
 - Fixed host protocol: handler `uniBridgeCall`, payload `{ type, data, callbackName? }`.
 
+### Transport (what we actually use)
+
+| Platform    | Channel                                                      | Notes                                                                           |
+| ----------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------- |
+| **Android** | `WebViewJavascriptBridge.callHandler('uniBridgeCall', …)`    | Wait for `WebViewJavascriptBridgeReady`; one-time `init`                        |
+| **iOS**     | `window.webkit.messageHandlers.uniBridgeCall.postMessage(…)` | Response via `window[callbackName](jsonString)`; **no** WVJB / iframe bootstrap |
+
+Legacy WVJB helpers (`exit`, `wxPayReqV2`, `savePicture`, …) are **not** part of this package.
+
 ## Develop
 
 ```bash
 vp install
 vp test
-vp pack   # build dist/
-vp check  # format + lint + types
+vp pack              # build dist/
+vp check             # format + lint + types
+vp run dev:playground  # open in a real App WebView to exercise the bridge
 ```

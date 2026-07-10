@@ -1,159 +1,78 @@
-import { BridgeNotAvailableError, BridgeProtocolError, BridgeTimeoutError } from "./errors.ts";
-import { detectPlatform } from "./platform.ts";
-import {
-  HANDLER_NAME,
-  buildCallbackName,
-  ensureAndroidInitialized,
-  hasIosUniHandler,
-  setupWebViewJavascriptBridge,
-} from "./setup.ts";
-import type {
-  BridgePlatform,
-  BridgeWindow,
-  RequestOptions,
-  UniBridgeCallPayload,
-  WebviewBridge,
-} from "./types.ts";
+import { BridgeNotAvailableError, BridgeProtocolError, BridgeTimeoutError } from './errors.ts'
+import { detectPlatform } from './platform.ts'
+import { ensureAndroidInitialized, hasIosUniHandler, whenAndroidBridgeReady } from './setup.ts'
+import type { BridgeWindow, RequestOptions, WebviewBridge } from './types.ts'
 
-const DEFAULT_TIMEOUT_MS = 60_000;
-
-function getWindow(): BridgeWindow {
-  return window as BridgeWindow;
-}
-
-function isTimeoutDisabled(timeout: number): boolean {
-  return timeout === 0 || !Number.isFinite(timeout);
-}
-
-function withTimeout<T>(promise: Promise<T>, timeout: number): Promise<T> {
-  if (isTimeoutDisabled(timeout)) {
-    return promise;
-  }
-
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => {
-      reject(new BridgeTimeoutError());
-    }, timeout);
-
-    promise.then(
-      (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      },
-      (error: unknown) => {
-        clearTimeout(timer);
-        reject(error);
-      },
-    );
-  });
-}
+const DEFAULT_TIMEOUT_MS = 60_000
 
 /**
- * Create a WebView bridge instance for JS → native communication.
+ * Create a WebView bridge (JS → native).
  *
- * No import-time side effects: call this explicitly (typically once per page).
- * Protocol is fixed to the production uni bridge (`uniBridgeCall` + `{ type, data, callbackName? }`).
+ * - Android: `WebViewJavascriptBridge.callHandler('uniBridgeCall', …)`
+ * - iOS: `webkit.messageHandlers.uniBridgeCall.postMessage(…)`
  */
 export function createBridge(): WebviewBridge {
-  const platform = detectPlatform();
-
-  let resolveReady!: () => void;
-  let rejectReady!: (error: Error) => void;
-  let readySettled = false;
+  const platform = detectPlatform()
+  const win = window as BridgeWindow
 
   const ready = new Promise<void>((resolve, reject) => {
-    resolveReady = () => {
-      if (readySettled) {
-        return;
-      }
-      readySettled = true;
-      resolve();
-    };
-    rejectReady = (error: Error) => {
-      if (readySettled) {
-        return;
-      }
-      readySettled = true;
-      reject(error);
-    };
-  });
+    if (platform === 'android') {
+      whenAndroidBridgeReady((bridge) => {
+        ensureAndroidInitialized(bridge)
+        resolve()
+      })
+      return
+    }
 
-  // Avoid unhandled rejection when callers never await `ready`.
-  ready.catch(() => {});
+    if (platform === 'ios') {
+      if (hasIosUniHandler()) {
+        resolve()
+      } else {
+        reject(
+          new BridgeNotAvailableError(
+            'iOS uniBridgeCall message handler is not available on window.webkit.messageHandlers',
+          ),
+        )
+      }
+      return
+    }
 
-  if (!platform) {
-    rejectReady(new BridgeNotAvailableError());
-  } else if (platform === "android") {
-    setupWebViewJavascriptBridge(platform, (bridge) => {
-      ensureAndroidInitialized(bridge);
-      resolveReady();
-    });
-  } else if (hasIosUniHandler()) {
-    resolveReady();
-  } else {
-    rejectReady(
-      new BridgeNotAvailableError(
-        "iOS uniBridgeCall message handler is not available on window.webkit.messageHandlers",
-      ),
-    );
+    reject(new BridgeNotAvailableError())
+  })
+
+  // Avoid unhandled rejection when nobody awaits `ready`.
+  ready.catch(() => {})
+
+  /** One call path — same shape as production `uniBridgeCall`. */
+  function call(type: string, data: unknown, onResponse?: (raw: string) => void): void {
+    if (platform === 'android') {
+      whenAndroidBridgeReady((native) => {
+        native.callHandler('uniBridgeCall', JSON.stringify({ type, data }), onResponse)
+      })
+      return
+    }
+
+    // iOS: postMessage only (no WebViewJavascriptBridge).
+    const callbackName = `bridge-callback:${type}`.replace(/[-:]/g, '_')
+    if (onResponse) {
+      ;(win as unknown as Record<string, (raw: string) => void>)[callbackName] = onResponse
+    }
+
+    const payload = onResponse ? { type, data, callbackName } : { type, data }
+    win.webkit!.messageHandlers!.uniBridgeCall!.postMessage(JSON.stringify(payload))
   }
 
-  function dispatch(
-    activePlatform: BridgePlatform,
-    type: string,
-    data: unknown,
-    callback?: (raw: string) => void,
-  ): void {
-    if (activePlatform === "android") {
-      const payload: UniBridgeCallPayload = { type, data };
-      setupWebViewJavascriptBridge(activePlatform, (bridge) => {
-        bridge.callHandler(HANDLER_NAME, JSON.stringify(payload), callback);
-      });
-      return;
-    }
-
-    // iOS: native invokes a global callback by name.
-    const win = getWindow();
-    const handler = win.webkit?.messageHandlers?.[HANDLER_NAME];
-    if (!handler) {
-      throw new BridgeNotAvailableError(
-        "iOS uniBridgeCall message handler is not available on window.webkit.messageHandlers",
-      );
-    }
-
-    const callbackName = buildCallbackName(type);
-    if (callback) {
-      const previous = (win as unknown as Record<string, unknown>)[callbackName];
-      (win as unknown as Record<string, unknown>)[callbackName] = (raw: string) => {
-        if (previous === undefined) {
-          delete (win as unknown as Record<string, unknown>)[callbackName];
-        } else {
-          (win as unknown as Record<string, unknown>)[callbackName] = previous;
-        }
-        callback(raw);
-      };
-    }
-
-    const payload: UniBridgeCallPayload = callback ? { type, data, callbackName } : { type, data };
-
-    handler.postMessage(JSON.stringify(payload));
-  }
-
-  const bridge: WebviewBridge = {
+  return {
     ready,
 
     send(type: string, data: unknown = {}): void {
       void ready
         .then(() => {
-          if (!platform) {
-            return;
-          }
-          dispatch(platform, type, data);
+          call(type, data)
         })
         .catch(() => {
-          // Fire-and-forget: drop when the channel never becomes available.
-          // Callers that care should `await bridge.ready` first.
-        });
+          /* channel unavailable — fire-and-forget */
+        })
     },
 
     request<T = unknown>(
@@ -161,32 +80,41 @@ export function createBridge(): WebviewBridge {
       data: unknown = {},
       options: RequestOptions = {},
     ): Promise<T> {
-      const timeout = options.timeout ?? DEFAULT_TIMEOUT_MS;
+      const timeout = options.timeout ?? DEFAULT_TIMEOUT_MS
 
-      const run = async (): Promise<T> => {
-        await ready;
-        if (!platform) {
-          throw new BridgeNotAvailableError();
-        }
-
-        return new Promise<T>((resolve, reject) => {
-          try {
-            dispatch(platform, type, data, (raw) => {
+      const work = ready.then(
+        () =>
+          new Promise<T>((resolve, reject) => {
+            call(type, data, (raw) => {
               try {
-                resolve(JSON.parse(raw) as T);
+                resolve(JSON.parse(raw) as T)
               } catch {
-                reject(new BridgeProtocolError());
+                reject(new BridgeProtocolError())
               }
-            });
-          } catch (error) {
-            reject(error instanceof Error ? error : new BridgeNotAvailableError(String(error)));
-          }
-        });
-      };
+            })
+          }),
+      )
 
-      return withTimeout(run(), timeout);
+      if (timeout === 0 || !Number.isFinite(timeout)) {
+        return work
+      }
+
+      return new Promise<T>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          reject(new BridgeTimeoutError())
+        }, timeout)
+
+        work.then(
+          (value) => {
+            clearTimeout(timer)
+            resolve(value)
+          },
+          (error: unknown) => {
+            clearTimeout(timer)
+            reject(error)
+          },
+        )
+      })
     },
-  };
-
-  return bridge;
+  }
 }
