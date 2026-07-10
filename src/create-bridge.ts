@@ -15,12 +15,13 @@ export function createBridge(): WebviewBridge {
   const platform = detectPlatform()
   const win = window as BridgeWindow
 
-  const ready = new Promise<void>((resolve, reject) => {
+  const $ready = new Promise<void>((resolve, reject) => {
     if (platform === 'android') {
       whenAndroidBridgeReady((bridge) => {
         ensureAndroidInitialized(bridge)
         resolve()
       })
+
       return
     }
 
@@ -34,6 +35,7 @@ export function createBridge(): WebviewBridge {
           ),
         )
       }
+
       return
     }
 
@@ -41,7 +43,7 @@ export function createBridge(): WebviewBridge {
   })
 
   // Avoid unhandled rejection when nobody awaits `ready`.
-  ready.catch(() => {})
+  $ready.catch(() => {})
 
   /** One call path — same shape as production `uniBridgeCall`. */
   function call(type: string, data: unknown, onResponse?: (raw: string) => void): void {
@@ -63,10 +65,10 @@ export function createBridge(): WebviewBridge {
   }
 
   return {
-    ready,
+    ready: $ready,
 
     send(type: string, data: unknown = {}): void {
-      void ready
+      void $ready
         .then(() => {
           call(type, data)
         })
@@ -82,7 +84,7 @@ export function createBridge(): WebviewBridge {
     ): Promise<T> {
       const timeout = options.timeout ?? DEFAULT_TIMEOUT_MS
 
-      const work = ready.then(
+      const work = $ready.then(
         () =>
           new Promise<T>((resolve, reject) => {
             call(type, data, (raw) => {
