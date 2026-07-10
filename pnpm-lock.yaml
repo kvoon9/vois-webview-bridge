@@ -236,6 +236,22 @@ importers:
         specifier: 'catalog:'
         version: 0.2.4(@types/node@25.9.5)(happy-dom@20.10.6)(jiti@2.7.0)(typescript@6.0.3)(vite@8.1.3(@types/node@25.9.5)(jiti@2.7.0)(yaml@2.9.0))(yaml@2.9.0)
 
+  playground:
+    dependencies:
+      '@vois/webview-bridge':
+        specifier: workspace:*
+        version: link:..
+    devDependencies:
+      portless:
+        specifier: ^0.15.1
+        version: 0.15.1
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite-plus:
+        specifier: 'catalog:'
+        version: 0.2.4(@types/node@25.9.5)(happy-dom@20.10.6)(jiti@2.7.0)(typescript@6.0.3)(vite@8.1.3(@types/node@25.9.5)(jiti@2.7.0)(yaml@2.9.0))(yaml@2.9.0)
+
 packages:
 
   '@babel/code-frame@7.29.7':
@@ -1156,6 +1172,12 @@ packages:
     resolution: {integrity: sha512-LKWqWJRhstyYo9pGvgor/ivk2w94eSjE3RGVuzLGlr3NmD8bf7RcYGze1mNdEHRP6TRP6rMuDHk5t44hnTRyow==}
     engines: {node: '>=14.19.0'}
 
+  portless@0.15.1:
+    resolution: {integrity: sha512-MQTt405HrcIa3m9OSKpH6WjJDbfNP4oFMNg0VzAoUO4B19l1eFJBFcSWfQY8KYMhzZVfa+Gea2OUrlDm8+/M4A==}
+    engines: {node: '>=24'}
+    os: [darwin, linux, win32]
+    hasBin: true
+
   postcss@8.5.16:
     resolution: {integrity: sha512-vuwillviilfKZsg0VGj5R/YwwcHx4SLsIOI/7K6mQkWx+l5cUHTjj5g0AasTBcyXsbfTgrwsUNmVUb5xVwyPwg==}
     engines: {node: ^10 || ^12 || >=14}
@@ -2022,6 +2044,8 @@ snapshots:
   picomatch@4.0.5: {}
 
   pngjs@7.0.0: {}
+
+  portless@0.15.1: {}
 
   postcss@8.5.16:
     dependencies:

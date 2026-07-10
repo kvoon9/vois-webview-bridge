@@ -1,0 +1,111 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font:
+    14px/1.4 system-ui,
+    sans-serif;
+  color: #111;
+  background: #f6f6f6;
+}
+
+main {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 1rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+h1 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.status {
+  margin: 0;
+  padding: 0.5rem 0.6rem;
+  border-radius: 4px;
+  background: #e8e8e8;
+}
+
+.status.ok {
+  background: #d8f5d8;
+}
+
+.status.err {
+  background: #fdd;
+}
+
+label {
+  display: grid;
+  gap: 0.25rem;
+  font-weight: 500;
+}
+
+input,
+textarea,
+button {
+  font: inherit;
+}
+
+input,
+textarea {
+  width: 100%;
+  padding: 0.45rem 0.5rem;
+  border: 1px solid #bbb;
+  border-radius: 4px;
+  background: #fff;
+}
+
+textarea {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  resize: vertical;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+button {
+  padding: 0.45rem 0.85rem;
+  border: 1px solid #333;
+  border-radius: 4px;
+  background: #111;
+  color: #fff;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: #fff;
+  color: #111;
+  border-color: #999;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+#log {
+  margin: 0;
+  min-height: 12rem;
+  max-height: 50vh;
+  overflow: auto;
+  padding: 0.6rem;
+  border-radius: 4px;
+  background: #111;
+  color: #e8e8e8;
+  font:
+    12px/1.45 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

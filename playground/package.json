@@ -1,0 +1,21 @@
+{
+  "name": "@vois/webview-bridge-playground",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "PORTLESS_LAN=1 PORTLESS_HTTPS=0 portless run vp dev",
+    "build": "vp build",
+    "preview": "PORTLESS_LAN=1 PORTLESS_HTTPS=0 portless run vp preview",
+    "check": "vp check"
+  },
+  "dependencies": {
+    "@vois/webview-bridge": "workspace:*"
+  },
+  "devDependencies": {
+    "portless": "^0.15.1",
+    "typescript": "^6.0.3",
+    "vite-plus": "catalog:"
+  },
+  "portless": "webview-bridge"
+}

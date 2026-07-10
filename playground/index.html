@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>webview-bridge playground</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <main>
+      <h1>webview-bridge playground</h1>
+      <p id="status" class="status">init…</p>
+
+      <label>
+        type
+        <input id="type" type="text" value="close-page" autocomplete="off" />
+      </label>
+
+      <label>
+        data (JSON)
+        <textarea id="data" rows="6" spellcheck="false">{}</textarea>
+      </label>
+
+      <label>
+        timeout ms (request only; empty = default)
+        <input id="timeout" type="number" min="0" step="1" placeholder="60000" />
+      </label>
+
+      <div class="actions">
+        <button id="send" type="button">Send</button>
+        <button id="request" type="button">Request</button>
+        <button id="clear" type="button" class="secondary">Clear log</button>
+      </div>
+
+      <pre id="log" aria-live="polite"></pre>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
