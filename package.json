@@ -41,6 +41,7 @@
     "bumpp": "^11.1.0",
     "happy-dom": "^20.10.6",
     "typescript": "^6.0.3",
+    "vite": "catalog:",
     "vite-plus": "catalog:"
   },
   "devEngines": {

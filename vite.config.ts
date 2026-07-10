@@ -19,20 +19,28 @@ export default defineConfig({
       },
     },
   },
+
   test: {
     environment: 'happy-dom',
   },
+
   lint: {
     options: {
       typeAware: true,
       typeCheck: true,
     },
   },
+
   fmt: {
     semi: false,
     singleQuote: true,
     sortImports: true,
     jsxSingleQuote: true,
     sortPackageJson: true,
+  },
+
+  staged: {
+    '*.{js,ts,tsx,vue,svelte}': 'vp check --fix',
+    'package.json': 'vp check --fix',
   },
 })
