@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "tsdown": {
+      "source": "kvoon3/skills",
+      "sourceType": "github",
+      "skillPath": "skills/tsdown/SKILL.md",
+      "computedHash": "2183b9019058744215ab8b1261e34833653b5864da159bc022e3b9ad2f706aa5"
+    },
     "vitepress": {
       "source": "kvoon3/skills",
       "sourceType": "github",

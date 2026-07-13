@@ -87,7 +87,7 @@ export default {
   extends: DefaultTheme,
   enhanceApp({ app }) {
     app.component('MyGlobalComponent', MyGlobalComponent)
-  }
+  },
 }
 ```
 

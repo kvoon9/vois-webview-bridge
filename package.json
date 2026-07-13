@@ -1,6 +1,6 @@
 {
   "name": "@vois/webview-bridge",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "JS → native WebView bridge protocol for Vois / Weila H5 pages (uniBridgeCall).",
   "keywords": [
     "bridge",
@@ -23,7 +23,8 @@
     },
     "./vois": {
       "types": "./dist/vois.d.mts",
-      "import": "./dist/vois.mjs"
+      "import": "./dist/vois.mjs",
+      "default": "./dist/vois.mjs"
     },
     "./package.json": "./package.json"
   },

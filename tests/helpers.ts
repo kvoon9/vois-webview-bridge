@@ -19,7 +19,11 @@ export const IOS_UA =
 
 export const DESKTOP_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'
 
-export function installAndroidBridge() {
+export function installAndroidBridge(): {
+  bridge: WebViewJavascriptBridge
+  callHandler: ReturnType<typeof vi.fn>
+  init: ReturnType<typeof vi.fn>
+} {
   const callHandler = vi.fn((_name: string, _data: unknown, callback?: (data: string) => void) => {
     callback?.(JSON.stringify({ errcode: 0, errmsg: 'ok' }))
   })
@@ -35,7 +39,7 @@ export function installAndroidBridge() {
   return { bridge, callHandler, init }
 }
 
-export function installIosHandler() {
+export function installIosHandler(): { postMessage: ReturnType<typeof vi.fn> } {
   const postMessage = vi.fn()
   window.webkit = {
     messageHandlers: {

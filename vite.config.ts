@@ -2,17 +2,20 @@ import { defineConfig } from 'vite-plus'
 
 export default defineConfig({
   pack: {
+    entry: ['src/index.ts', 'src/vois.ts'],
     dts: {
       tsgo: true,
     },
     exports: {
       customExports(pkgExports) {
-        const root = pkgExports['.']
-        if (typeof root === 'string') {
-          pkgExports['.'] = {
-            types: './dist/index.d.mts',
-            import: root,
-            default: root,
+        for (const key of ['.', './vois']) {
+          const entry = pkgExports[key]
+          if (typeof entry === 'string') {
+            pkgExports[key] = {
+              types: entry.replace(/\.mjs$/, '.d.mts'),
+              import: entry,
+              default: entry,
+            }
           }
         }
         return pkgExports

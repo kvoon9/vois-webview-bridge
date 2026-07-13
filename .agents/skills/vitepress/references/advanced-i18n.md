@@ -48,19 +48,19 @@ export default defineConfig({
   locales: {
     root: {
       label: 'English',
-      lang: 'en'
+      lang: 'en',
     },
     zh: {
       label: '简体中文',
       lang: 'zh-CN',
-      link: '/zh/'
+      link: '/zh/',
     },
     fr: {
       label: 'Français',
       lang: 'fr',
-      link: '/fr/'
-    }
-  }
+      link: '/fr/',
+    },
+  },
 })
 ```
 
@@ -113,11 +113,11 @@ Each locale can override:
 ```ts
 interface LocaleSpecificConfig {
   lang?: string
-  dir?: string              // 'ltr' or 'rtl'
+  dir?: string // 'ltr' or 'rtl'
   title?: string
   titleTemplate?: string | boolean
   description?: string
-  head?: HeadConfig[]       // Merged with existing
+  head?: HeadConfig[] // Merged with existing
   themeConfig?: ThemeConfig // Shallow merged
 }
 ```
@@ -249,9 +249,9 @@ export default {
   plugins: [
     rtlcss({
       ltrPrefix: ':where([dir="ltr"])',
-      rtlPrefix: ':where([dir="rtl"])'
-    })
-  ]
+      rtlPrefix: ':where([dir="rtl"])',
+    }),
+  ],
 }
 ```
 
@@ -279,8 +279,8 @@ export default defineConfig({
   ...shared,
   locales: {
     root: { label: 'English', ...en },
-    zh: { label: '简体中文', ...zh }
-  }
+    zh: { label: '简体中文', ...zh },
+  },
 })
 ```
 
