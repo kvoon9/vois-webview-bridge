@@ -1,13 +1,4 @@
-export { createBridge } from './create-bridge.ts'
-export {
-  BridgeError,
-  BridgeNotAvailableError,
-  BridgeProtocolError,
-  BridgeTimeoutError,
-} from './errors.ts'
-export type {
-  BridgePlatform,
-  RequestOptions,
-  UniBridgeCallPayload,
-  WebviewBridge,
-} from './types.ts'
+export { Bridge, onBridgeReady } from './bridge/index.ts'
+export { BridgeError, BridgeNotAvailableError, BridgeProtocolError } from './errors.ts'
+export { isAndroid, isIOS, isSupportBridge } from './platform.ts'
+export type { UniBridgeCallPayload, WebViewJavascriptBridge, WebviewBridge } from './types.ts'

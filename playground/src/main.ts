@@ -1,15 +1,12 @@
-import { createBridge } from '@vois/webview-bridge'
+import { isSupportBridge, onBridgeReady, type WebviewBridge } from '@vois/webview-bridge'
 
 const statusEl = document.querySelector<HTMLParagraphElement>('#status')!
 const typeEl = document.querySelector<HTMLInputElement>('#type')!
 const dataEl = document.querySelector<HTMLTextAreaElement>('#data')!
-const timeoutEl = document.querySelector<HTMLInputElement>('#timeout')!
 const logEl = document.querySelector<HTMLPreElement>('#log')!
 const sendBtn = document.querySelector<HTMLButtonElement>('#send')!
 const requestBtn = document.querySelector<HTMLButtonElement>('#request')!
 const clearBtn = document.querySelector<HTMLButtonElement>('#clear')!
-
-const bridge = createBridge()
 
 function now(): string {
   return new Date().toISOString().slice(11, 23)
@@ -46,18 +43,6 @@ function parseData(): unknown {
   return JSON.parse(raw) as unknown
 }
 
-function parseTimeout(): number | undefined {
-  const raw = timeoutEl.value.trim()
-  if (raw === '') {
-    return undefined
-  }
-  const value = Number(raw)
-  if (!Number.isFinite(value) || value < 0) {
-    throw new Error('timeout must be a non-negative number')
-  }
-  return value
-}
-
 function getType(): string {
   const type = typeEl.value.trim()
   if (!type) {
@@ -66,22 +51,29 @@ function getType(): string {
   return type
 }
 
-setStatus('waiting for bridge.ready…')
-log('createBridge()')
+let bridge: WebviewBridge | null = null
 
-void bridge.ready.then(
-  () => {
+log(`isSupportBridge() → ${isSupportBridge()}`)
+
+if (!isSupportBridge()) {
+  setStatus('bridge not supported in this environment', 'err')
+  log('skip onBridgeReady — degrade UI')
+} else {
+  setStatus('waiting for bridge…')
+  log('onBridgeReady(…)')
+
+  onBridgeReady((readyBridge) => {
+    bridge = readyBridge
     setStatus('bridge ready', 'ok')
-    log('ready resolved')
-  },
-  (error: unknown) => {
-    setStatus(formatError(error), 'err')
-    log(`ready rejected: ${formatError(error)}`)
-  },
-)
+    log('onBridgeReady(bridge)')
+  })
+}
 
 sendBtn.addEventListener('click', () => {
   try {
+    if (!bridge) {
+      throw new Error('bridge not ready — wait for onBridgeReady')
+    }
     const type = getType()
     const data = parseData()
     log(`send(${JSON.stringify(type)}, ${JSON.stringify(data)})`)
@@ -95,16 +87,13 @@ sendBtn.addEventListener('click', () => {
 requestBtn.addEventListener('click', () => {
   void (async () => {
     try {
+      if (!bridge) {
+        throw new Error('bridge not ready — wait for onBridgeReady')
+      }
       const type = getType()
       const data = parseData()
-      const timeout = parseTimeout()
-      const options = timeout === undefined ? undefined : { timeout }
-      log(
-        `request(${JSON.stringify(type)}, ${JSON.stringify(data)}${
-          options ? `, ${JSON.stringify(options)}` : ''
-        })`,
-      )
-      const result = await bridge.request(type, data, options)
+      log(`request(${JSON.stringify(type)}, ${JSON.stringify(data)})`)
+      const result = await bridge.request(type, data)
       log(`response: ${JSON.stringify(result, null, 2)}`)
     } catch (error) {
       log(`request error: ${formatError(error)}`)

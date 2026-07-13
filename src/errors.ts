@@ -6,16 +6,9 @@ export class BridgeError extends Error {
 }
 
 export class BridgeNotAvailableError extends BridgeError {
-  constructor(message = 'WebView bridge is not available in this environment') {
+  constructor(message = 'WebView bridge not found') {
     super(message)
     this.name = 'BridgeNotAvailableError'
-  }
-}
-
-export class BridgeTimeoutError extends BridgeError {
-  constructor(message = 'WebView bridge request timed out') {
-    super(message)
-    this.name = 'BridgeTimeoutError'
   }
 }
 

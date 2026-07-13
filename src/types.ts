@@ -14,39 +14,28 @@ export interface UniBridgeCallPayload<T = unknown> {
   callbackName?: string
 }
 
-export interface RequestOptions {
-  /**
-   * Timeout in milliseconds for the whole request (including waiting for ready).
-   * Default: `60_000`.
-   * Pass `0` or `Infinity` to disable timeout.
-   */
-  timeout?: number
-}
-
 export interface WebviewBridge {
-  /**
-   * Resolves when the native channel is ready.
-   * Rejects with `BridgeNotAvailableError` when not running inside a supported WebView.
-   */
-  readonly ready: Promise<void>
-
   /** Fire-and-forget: JS → native, no response. */
   send(type: string, data?: unknown): void
 
-  /** Request/response: JS → native, waits for a parsed JSON response. */
-  request<T = unknown>(type: string, data?: unknown, options?: RequestOptions): Promise<T>
+  /** Request/response: JS → native, waits for a parsed JSON response (no timeout). */
+  request<T = unknown>(type: string, data?: unknown): Promise<T>
 }
 
-export type BridgePlatform = 'android' | 'ios'
+/** Lowest-level JS → native dispatch for the uni protocol (wired in `startWaiting`). */
+export type NativeCall = (type: string, data: unknown, onResponse?: (raw: string) => void) => void
 
-export interface BridgeWindow extends Window {
-  /** Android shell injects this. */
-  WebViewJavascriptBridge?: WebViewJavascriptBridge
-  /** iOS WKWebView script message handler for the uni protocol. */
-  webkit?: {
-    messageHandlers?: {
-      uniBridgeCall?: {
-        postMessage: (message: string) => void
+/** Native-injected WebView globals used by this package. */
+declare global {
+  interface Window {
+    /** Android shell injects this. */
+    WebViewJavascriptBridge?: WebViewJavascriptBridge
+    /** iOS WKWebView script message handlers for the uni protocol. */
+    webkit?: {
+      messageHandlers?: {
+        uniBridgeCall?: {
+          postMessage: (message: string) => void
+        }
       }
     }
   }
