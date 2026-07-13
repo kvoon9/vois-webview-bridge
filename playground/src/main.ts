@@ -8,6 +8,33 @@ const sendBtn = document.querySelector<HTMLButtonElement>('#send')!
 const requestBtn = document.querySelector<HTMLButtonElement>('#request')!
 const clearBtn = document.querySelector<HTMLButtonElement>('#clear')!
 
+// Preset buttons
+const presetCloseBtn = document.querySelector<HTMLButtonElement>('#preset-close')!
+const presetWechatBtn = document.querySelector<HTMLButtonElement>('#preset-wechat')!
+const presetIosBtn = document.querySelector<HTMLButtonElement>('#preset-ios')!
+
+// Sample data for common scenarios (realistic values)
+const SAMPLE_CLOSE_PAGE = {}
+
+const SAMPLE_WECHAT_PREPAY = {
+  appid: 'wx1234567890abcdef',
+  partnerid: '1234567890',
+  prepay_id: 'wx2026071312345678901234567890',
+  noncestr: 'randomnonce123456',
+  timestamp: 1752400000,
+  sign: 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6',
+  extdata: 'playground-test',
+}
+
+const SAMPLE_IOS_PREPAY = {
+  product_id: 'vip_monthly',
+  product_name: 'VIP会员-月度',
+  product_desc: '解锁全部高级功能',
+  amount: 1990,
+  currency: 'CNY',
+  order_no: 'ORD202607130001',
+}
+
 function now(): string {
   return new Date().toISOString().slice(11, 23)
 }
@@ -49,6 +76,35 @@ function getType(): string {
     throw new Error('type is required')
   }
   return type
+}
+
+function applyToForm(type: string, data: unknown): void {
+  typeEl.value = type
+  dataEl.value = JSON.stringify(data, null, 2)
+}
+
+function performSend(type: string, data: unknown): void {
+  if (!bridge) {
+    log('send error: bridge not ready — wait for onBridgeReady')
+    return
+  }
+  log(`send(${JSON.stringify(type)}, ${JSON.stringify(data)})`)
+  bridge.send(type, data)
+  log('send dispatched (fire-and-forget)')
+}
+
+async function performRequest(type: string, data: unknown): Promise<void> {
+  if (!bridge) {
+    log('request error: bridge not ready — wait for onBridgeReady')
+    return
+  }
+  log(`request(${JSON.stringify(type)}, ${JSON.stringify(data)})`)
+  try {
+    const result = await bridge.request(type, data)
+    log(`response: ${JSON.stringify(result, null, 2)}`)
+  } catch (error) {
+    log(`request error: ${formatError(error)}`)
+  }
 }
 
 let bridge: WebviewBridge | null = null
@@ -103,4 +159,20 @@ requestBtn.addEventListener('click', () => {
 
 clearBtn.addEventListener('click', () => {
   logEl.textContent = ''
+})
+
+// Preset scenario buttons — one-click testing with realistic sample data
+presetCloseBtn.addEventListener('click', () => {
+  applyToForm('close-page', SAMPLE_CLOSE_PAGE)
+  performSend('close-page', SAMPLE_CLOSE_PAGE)
+})
+
+presetWechatBtn.addEventListener('click', () => {
+  applyToForm('wechat-app-prepay', SAMPLE_WECHAT_PREPAY)
+  void performRequest('wechat-app-prepay', SAMPLE_WECHAT_PREPAY)
+})
+
+presetIosBtn.addEventListener('click', () => {
+  applyToForm('ios-app-prepay', SAMPLE_IOS_PREPAY)
+  void performRequest('ios-app-prepay', SAMPLE_IOS_PREPAY)
 })

@@ -11,21 +11,44 @@
       <h1>webview-bridge playground</h1>
       <p id="status" class="status">init…</p>
 
-      <label>
-        type
-        <input id="type" type="text" value="close-page" autocomplete="off" />
-      </label>
+      <section class="presets">
+        <h2>常用测试场景</h2>
+        <div class="preset-grid">
+          <button id="preset-close" type="button" class="preset-btn">
+            <span class="label">发送</span>
+            <code>close-page</code>
+          </button>
+          <button id="preset-wechat" type="button" class="preset-btn">
+            <span class="label">请求</span>
+            <code>wechat-app-prepay</code>
+          </button>
+          <button id="preset-ios" type="button" class="preset-btn">
+            <span class="label">请求</span>
+            <code>ios-app-prepay</code>
+          </button>
+        </div>
+        <p class="hint">点击按钮将使用预置示例数据直接调用对应的 send / request。</p>
+      </section>
 
-      <label>
-        data (JSON)
-        <textarea id="data" rows="6" spellcheck="false">{}</textarea>
-      </label>
+      <details class="manual" open>
+        <summary>手动输入（自定义协议）</summary>
 
-      <div class="actions">
-        <button id="send" type="button">Send</button>
-        <button id="request" type="button">Request</button>
-        <button id="clear" type="button" class="secondary">Clear log</button>
-      </div>
+        <label>
+          type
+          <input id="type" type="text" value="close-page" autocomplete="off" />
+        </label>
+
+        <label>
+          data (JSON)
+          <textarea id="data" rows="5" spellcheck="false">{}</textarea>
+        </label>
+
+        <div class="actions">
+          <button id="send" type="button">Send</button>
+          <button id="request" type="button">Request</button>
+          <button id="clear" type="button" class="secondary">Clear log</button>
+        </div>
+      </details>
 
       <pre id="log" aria-live="polite"></pre>
     </main>
