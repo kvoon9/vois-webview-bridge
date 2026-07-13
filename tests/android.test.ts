@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 import { BridgeProtocolError } from '../src/index.ts'
 import { onBridgeReady } from '../src/index.ts'
 import type { WebviewBridge } from '../src/types.ts'
+// Opt into built-in Vois app protocols for this test file
+import '../src/vois.ts'
 import {
   ANDROID_UA,
   installAndroidBridge,
@@ -32,7 +34,13 @@ describe('onBridgeReady — Android', () => {
     expect(JSON.parse(payload as string)).toEqual({ type: 'close-page', data: {} })
 
     callHandler.mockClear()
-    const res = await bridge.request<{ errcode: number }>('ios-app-prepay', { product_id: 'x' })
+    const res = await bridge.request('ios-app-prepay', {
+      product_id: 'x',
+      product_name: 'VIP',
+      product_desc: 'desc',
+      amount: 1,
+      currency: 'CNY',
+    })
     expect(res).toEqual({ errcode: 0, errmsg: 'ok' })
     expect(callHandler).toHaveBeenCalledOnce()
   })
@@ -66,7 +74,7 @@ describe('onBridgeReady — Android', () => {
       expect(onReady).toHaveBeenCalledOnce()
     })
     const readyBridge = onReady.mock.calls[0]![0] as WebviewBridge
-    const res = await readyBridge.request<{ ok: boolean }>('ping')
+    const res = await readyBridge.request('ping')
     expect(res).toEqual({ ok: true })
     expect(init).toHaveBeenCalledOnce()
   })
@@ -93,7 +101,7 @@ describe('onBridgeReady — Android', () => {
     )
 
     const bridge = await whenReady()
-    const promise = bridge.request<{ ok: boolean }>('slow')
+    const promise = bridge.request('slow')
 
     let settled = false
     void promise.then(

@@ -21,6 +21,10 @@
       "import": "./dist/index.mjs",
       "default": "./dist/index.mjs"
     },
+    "./vois": {
+      "types": "./dist/vois.d.mts",
+      "import": "./dist/vois.mjs"
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {

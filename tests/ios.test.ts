@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { onBridgeReady } from '../src/index.ts'
 import type { WebviewBridge } from '../src/types.ts'
+// Opt into built-in Vois app protocols for this test file
+import '../src/vois.ts'
 import {
   IOS_UA,
   installIosHandler,
@@ -21,7 +23,15 @@ describe('onBridgeReady — iOS', () => {
     const { postMessage } = installIosHandler()
     const bridge = await whenReady()
 
-    const promise = bridge.request<{ errcode: number }>('wechat-app-prepay', { a: 1 })
+    const prepay = {
+      appid: 'app',
+      partnerid: 'partner',
+      prepay_id: 'prepay',
+      noncestr: 'nonce',
+      timestamp: 1,
+      sign: 'sign',
+    }
+    const promise = bridge.request('wechat-app-prepay', prepay)
 
     expect(postMessage).toHaveBeenCalledOnce()
     const payload = JSON.parse(postMessage.mock.calls[0]![0] as string) as {
@@ -30,7 +40,7 @@ describe('onBridgeReady — iOS', () => {
       callbackName: string
     }
     expect(payload.type).toBe('wechat-app-prepay')
-    expect(payload.data).toEqual({ a: 1 })
+    expect(payload.data).toEqual(prepay)
     expect(payload.callbackName).toBe('bridge_callback_wechat_app_prepay')
 
     const cb = (window as unknown as Record<string, (raw: string) => void>)[payload.callbackName]
@@ -44,12 +54,12 @@ describe('onBridgeReady — iOS', () => {
     const { postMessage } = installIosHandler()
     const bridge = await whenReady()
 
-    bridge.send('close-page', { x: 1 })
+    bridge.send('close-page')
 
     expect(postMessage).toHaveBeenCalledOnce()
     expect(JSON.parse(postMessage.mock.calls[0]![0] as string)).toEqual({
       type: 'close-page',
-      data: { x: 1 },
+      data: {},
     })
   })
 

@@ -1,4 +1,5 @@
 export { Bridge, onBridgeReady } from './bridge/index.ts'
 export { BridgeError, BridgeNotAvailableError, BridgeProtocolError } from './errors.ts'
 export { isAndroid, isIOS, isSupportBridge } from './platform.ts'
+export type { BridgeFn, BridgeProtocolMap } from './protocol.ts'
 export type { UniBridgeCallPayload, WebViewJavascriptBridge, WebviewBridge } from './types.ts'
