@@ -7,15 +7,20 @@
  *
  * Blume writes isolated builds to `.blume-verify/dist`. We copy that to
  * `docs/dist` for Cloudflare Pages.
+ *
+ * We also copy files from the root `public/` directory (e.g. _headers)
+ * so that Cloudflare Pages static configuration works reliably
+ * whether deploying via wrangler or Dashboard Git integration.
  */
 
 import { execSync } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, rmSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
 const ROOT = process.cwd()
 const ISOLATED_DIST = '.blume-verify/dist'
 const FINAL_DIST = join('docs', 'dist')
+const PUBLIC_DIR = 'public'
 
 console.log('🧹 Cleaning previous docs/dist...')
 rmSync(FINAL_DIST, { recursive: true, force: true })
@@ -40,6 +45,20 @@ if (!existsSync(ISOLATED_DIST)) {
 console.log(`📁 Moving ${ISOLATED_DIST} → ${FINAL_DIST}...`)
 mkdirSync('docs', { recursive: true })
 cpSync(ISOLATED_DIST, FINAL_DIST, { recursive: true })
+
+// Copy static assets from root public/ (e.g. _headers for Cloudflare Pages)
+if (existsSync(PUBLIC_DIR)) {
+  console.log(`📄 Copying static files from ${PUBLIC_DIR}/ → ${FINAL_DIST}/`)
+  for (const entry of readdirSync(PUBLIC_DIR)) {
+    const src = join(PUBLIC_DIR, entry)
+    const dest = join(FINAL_DIST, entry)
+    if (statSync(src).isDirectory()) {
+      cpSync(src, dest, { recursive: true })
+    } else {
+      cpSync(src, dest)
+    }
+  }
+}
 
 // Clean temp isolated dir
 rmSync('.blume-verify', { recursive: true, force: true })

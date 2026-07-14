@@ -1,7 +1,7 @@
 # Wrangler config for Cloudflare Pages - Documentation site
 # Usage:
 #   pnpm deploy:docs
-#   wrangler pages deploy docs/.vitepress/dist --config wrangler.docs.toml
+#   wrangler pages deploy docs/dist --config wrangler.docs.toml
 
 name = "webview-bridge"
 

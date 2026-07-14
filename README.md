@@ -213,37 +213,45 @@ LLM-optimized files (`llm.md`, `llms-full.txt`) are generated on build. Every pa
 
 ## Deployment (Cloudflare Pages)
 
-Both the documentation site and the interactive playground are deployed via Cloudflare Pages.
+Both the documentation site and the interactive playground are deployed to Cloudflare Pages.
 
-**Cloudflare 官方 CLI 工具是 `wrangler`**。本项目推荐使用 Vite+ 提供的 `vpx` 来执行它（类似 `npx`），无需将 wrangler 加入项目依赖。
+**推荐自动部署方式**：在 Cloudflare Dashboard 中直接连接仓库（Git 集成），无需 GitHub Actions 或 secrets。
+
+**手动部署**：使用 `wrangler` CLI（通过本项目推荐的 `vpx` 执行，无需把 wrangler 加入依赖）。
 
 ### One-time Setup
 
-1. 使用 `vpx wrangler` 创建 Pages 项目（推荐）：
+Create the two Pages projects (via Dashboard or CLI):
 
-   ```bash
-   pnpm cf:projects
-   vpx wrangler pages project create webview-bridge
-   vpx wrangler pages project create webview-bridge-playground
-   ```
+```bash
+pnpm cf:projects
+vpx wrangler pages project create webview-bridge
+vpx wrangler pages project create webview-bridge-playground
+```
 
-   或者直接在 Cloudflare Dashboard 创建也可以，第一次部署时也会自动创建。
+The first deploy (manual or via Dashboard) will also auto-create the projects.
 
-2. In your GitHub repository, go to **Settings → Secrets and variables → Actions**:
-   - Add Repository secret: `CLOUDFLARE_API_TOKEN` (create one at Cloudflare with `Cloudflare Pages:Edit` permission)
-   - (Optional) Add `CLOUDFLARE_ACCOUNT_ID`
-   - (Optional) Add Repository **variables**:
-     - `DOCS_PROJECT_NAME` (defaults to `webview-bridge`)
-     - `PLAYGROUND_PROJECT_NAME` (defaults to `webview-bridge-playground`)
-     - `PLAYGROUND_URL` (e.g. `https://your-custom-domain.com` or the pages.dev URL — used when building docs)
+### Recommended: Automatic Deployment via Cloudflare Dashboard
 
-### Automatic Deployment
+Connect the repository in the Cloudflare Dashboard for **automatic** deploys (recommended):
 
-Pushing to `main` triggers production deploy for both sites.
+**Docs project**
+- Root directory: `.`
+- Build command: `pnpm install --frozen-lockfile && pnpm docs:build`
+- Build output directory: `docs/dist`
+- (Optional) Set `PLAYGROUND_URL` environment variable to your playground URL
 
-Pull requests create preview deployments automatically.
+**Playground project**
+- Root directory: `.`
+- Build command: `pnpm install --frozen-lockfile && pnpm build:playground`
+- Build output directory: `playground/dist`
 
-### 使用 Wrangler CLI 部署（推荐本地手动方式）
+- Push to `main` → production deploys
+- Pull requests → preview deployments (native Cloudflare support)
+
+No GitHub secrets or workflows are required.
+
+### 使用 Wrangler CLI 部署（本地手动 / 脚本方式）
 
 Cloudflare 官方 CLI 工具是 **`wrangler`**。我们推荐通过 Vite+ 的 `vpx` 来运行（无需加入 devDependencies）。
 
@@ -322,7 +330,7 @@ vpx wrangler pages deploy docs/dist \
 pnpm build:site && pnpm deploy
 ```
 
-#### 使用环境变量认证（CI / 无浏览器环境）
+#### 使用环境变量认证（非交互式 / 脚本环境）
 
 ```bash
 CLOUDFLARE_API_TOKEN=your_token_here pnpm deploy:docs
@@ -331,25 +339,6 @@ CLOUDFLARE_API_TOKEN=your_token_here pnpm deploy:docs
 CLOUDFLARE_API_TOKEN=xxx vpx wrangler pages deploy ... --config wrangler.docs.toml
 ```
 
-### Dashboard-only Deployment (no GitHub Actions)
-
-You can also connect the repo directly in the Cloudflare dashboard:
-
-- **Docs project**:
-  - Root directory: `.`
-  - Build command: `pnpm install --frozen-lockfile && pnpm docs:build`
-  - Build output directory: `docs/dist`
-  - Set environment variable `PLAYGROUND_URL` to your playground URL
-
-- **Playground project**:
-  - Root directory: `.`
-  - Build command: `pnpm install --frozen-lockfile && pnpm build:playground`
-  - Build output directory: `playground/dist`
-
-```
-
-```
-
-```
+> **提示**：如果你使用 Cloudflare Dashboard Git 集成做自动部署，就不需要在 GitHub 里放任何 Cloudflare Token。
 
 ```
