@@ -43,14 +43,12 @@ jobs:
         run: pnpm build:playground
 
       - name: Deploy to Cloudflare Pages (Playground)
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          # Uses inline --project-name so it can be configured via GitHub variables without changing committed files.
-          # Locally: pnpm deploy:playground (uses vpx + wrangler.playground.toml)
-          command: pages deploy playground/dist --project-name=${{ vars.PLAYGROUND_PROJECT_NAME || 'webview-bridge-playground' }} --branch=${{ github.head_ref || github.ref_name }}
-          packageManager: pnpm
+        # Use pnpm dlx (equivalent of npx) so we consistently use pnpm to fetch wrangler.
+        # This avoids issues with cloudflare/wrangler-action trying to install wrangler itself.
+        run: pnpm dlx wrangler pages deploy playground/dist --project-name=${{ vars.PLAYGROUND_PROJECT_NAME || 'webview-bridge-playground' }} --branch=${{ github.head_ref || github.ref_name }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
   deploy-docs:
     runs-on: ubuntu-latest
@@ -84,11 +82,9 @@ jobs:
           PLAYGROUND_URL: ${{ vars.PLAYGROUND_URL || 'https://webview-bridge-playground.pages.dev' }}
 
       - name: Deploy to Cloudflare Pages (Docs)
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          # Uses inline --project-name so it can be configured via GitHub variables without changing committed files.
-          # Locally: pnpm deploy:docs (uses vpx + wrangler.docs.toml)
-          command: pages deploy docs/dist --project-name=${{ vars.DOCS_PROJECT_NAME || 'webview-bridge' }} --branch=${{ github.head_ref || github.ref_name }}
-          packageManager: pnpm
+        # Use pnpm dlx (equivalent of npx) so we consistently use pnpm to fetch wrangler.
+        # This avoids issues with cloudflare/wrangler-action trying to install wrangler itself.
+        run: pnpm dlx wrangler pages deploy docs/dist --project-name=${{ vars.DOCS_PROJECT_NAME || 'webview-bridge' }} --branch=${{ github.head_ref || github.ref_name }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
