@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -89,5 +90,5 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           # Uses inline --project-name so it can be configured via GitHub variables without changing committed files.
           # Locally: pnpm deploy:docs (uses vpx + wrangler.docs.toml)
-          command: pages deploy docs/.vitepress/dist --project-name=${{ vars.DOCS_PROJECT_NAME || 'webview-bridge' }} --branch=${{ github.head_ref || github.ref_name }}
+          command: pages deploy docs/dist --project-name=${{ vars.DOCS_PROJECT_NAME || 'webview-bridge' }} --branch=${{ github.head_ref || github.ref_name }}
           packageManager: pnpm
