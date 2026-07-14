@@ -194,3 +194,162 @@ vp pack              # build dist/
 vp check             # format + lint + types
 vp run dev:playground  # open in a real App WebView to exercise the bridge
 ```
+
+## Documentation
+
+Full documentation (bilingual EN/ZH + LLM-friendly output) follows this structure:
+
+1. [Introduction](/)
+2. [Data Spec](/data-spec) — Request / Response wire format
+3. [Web Usage](/web-usage) — Install, Bridge Instance, Error Handling, Built-in, Custom protocols
+4. [Native Preparation](/native/android) — Android & iOS integration with code examples
+
+```bash
+pnpm docs:dev
+pnpm docs:build
+```
+
+LLM-optimized files (`llm.md`, `llms-full.txt`) are generated on build. Every page includes a "Copy as Markdown" button.
+
+## Deployment (Cloudflare Pages)
+
+Both the documentation site and the interactive playground are deployed via Cloudflare Pages.
+
+**Cloudflare 官方 CLI 工具是 `wrangler`**。本项目推荐使用 Vite+ 提供的 `vpx` 来执行它（类似 `npx`），无需将 wrangler 加入项目依赖。
+
+### One-time Setup
+
+1. 使用 `vpx wrangler` 创建 Pages 项目（推荐）：
+
+   ```bash
+   pnpm cf:projects
+   vpx wrangler pages project create webview-bridge
+   vpx wrangler pages project create webview-bridge-playground
+   ```
+
+   或者直接在 Cloudflare Dashboard 创建也可以，第一次部署时也会自动创建。
+
+2. In your GitHub repository, go to **Settings → Secrets and variables → Actions**:
+   - Add Repository secret: `CLOUDFLARE_API_TOKEN` (create one at Cloudflare with `Cloudflare Pages:Edit` permission)
+   - (Optional) Add `CLOUDFLARE_ACCOUNT_ID`
+   - (Optional) Add Repository **variables**:
+     - `DOCS_PROJECT_NAME` (defaults to `webview-bridge`)
+     - `PLAYGROUND_PROJECT_NAME` (defaults to `webview-bridge-playground`)
+     - `PLAYGROUND_URL` (e.g. `https://your-custom-domain.com` or the pages.dev URL — used when building docs)
+
+### Automatic Deployment
+
+Pushing to `main` triggers production deploy for both sites.
+
+Pull requests create preview deployments automatically.
+
+### 使用 Wrangler CLI 部署（推荐本地手动方式）
+
+Cloudflare 官方 CLI 工具是 **`wrangler`**。我们推荐通过 Vite+ 的 `vpx` 来运行（无需加入 devDependencies）。
+
+#### 常用命令
+
+```bash
+# 1. 登录（首次使用）
+vpx wrangler login
+
+# 2. 查看 / 创建项目
+vpx wrangler pages project list
+vpx wrangler pages project create webview-bridge
+vpx wrangler pages project create webview-bridge-playground
+
+# 3. 构建并部署（推荐）
+pnpm build:site && pnpm deploy
+
+# 或者分开
+pnpm docs:build && pnpm deploy:docs
+pnpm build:playground && pnpm deploy:playground
+
+# 4. 查看最近部署
+vpx wrangler pages deployment list --config wrangler.docs.toml
+```
+
+#### 当前项目提供的部署相关脚本
+
+```json
+{
+  // 构建
+  "build:playground": "...",
+  "docs:build": "...",
+  "build:site": "pnpm build:playground && pnpm docs:build",
+
+  // 部署（推荐）
+  "deploy": "pnpm run deploy:playground && pnpm run deploy:docs",
+  "deploy:docs": "vpx wrangler pages deploy docs/dist --config wrangler.docs.toml",
+  "deploy:playground": "vpx wrangler pages deploy playground/dist --config wrangler.playground.toml",
+
+  // Cloudflare 辅助命令
+  "cf:login": "vpx wrangler login",
+  "cf:projects": "vpx wrangler pages project list",
+  "cf:deployments:docs": "vpx wrangler pages deployment list --config wrangler.docs.toml"
+}
+```
+
+推荐用法：
+
+```bash
+# 一次性构建并部署两个站点（playground 先部署）
+pnpm build:site && pnpm deploy
+
+# 或者分开执行
+pnpm build:playground && pnpm deploy:playground
+pnpm docs:build && pnpm deploy:docs
+```
+
+我们使用独立的 `wrangler.*.toml` 配置文件。使用 `vpx` 可以在不把 wrangler 加入依赖的情况下执行。
+
+#### 高级用法（传参 / 预览部署）
+
+```bash
+# 通过 -- 传递额外参数给 wrangler（推荐方式）
+pnpm deploy:docs -- --branch=feature-xxx
+pnpm deploy:playground -- --branch=feature-xxx --project-name=other-name
+
+# 或者直接使用 vpx
+vpx wrangler pages deploy docs/dist \
+  --config wrangler.docs.toml \
+  --branch=feature-xxx
+```
+
+完整一键部署（先 playground 再 docs）：
+
+```bash
+pnpm build:site && pnpm deploy
+```
+
+#### 使用环境变量认证（CI / 无浏览器环境）
+
+```bash
+CLOUDFLARE_API_TOKEN=your_token_here pnpm deploy:docs
+
+# 或者
+CLOUDFLARE_API_TOKEN=xxx vpx wrangler pages deploy ... --config wrangler.docs.toml
+```
+
+### Dashboard-only Deployment (no GitHub Actions)
+
+You can also connect the repo directly in the Cloudflare dashboard:
+
+- **Docs project**:
+  - Root directory: `.`
+  - Build command: `pnpm install --frozen-lockfile && pnpm docs:build`
+  - Build output directory: `docs/dist`
+  - Set environment variable `PLAYGROUND_URL` to your playground URL
+
+- **Playground project**:
+  - Root directory: `.`
+  - Build command: `pnpm install --frozen-lockfile && pnpm build:playground`
+  - Build output directory: `playground/dist`
+
+```
+
+```
+
+```
+
+```

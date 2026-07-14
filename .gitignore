@@ -2,3 +2,12 @@ node_modules
 dist
 *.log
 .DS_Store
+
+# Blume (generated runtime + isolated verify builds)
+.blume/
+.blume-*/
+.blume-verify/
+
+# Legacy VitePress (kept for reference during migration, safe to delete)
+.vitepress/
+docs/.vitepress/

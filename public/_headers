@@ -1,0 +1,9 @@
+# Cloudflare Pages headers for VitePress docs
+# See: https://developers.cloudflare.com/pages/configuration/headers/
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# HTML pages - short cache, allow revalidation
+/*
+  Cache-Control: public, max-age=0, must-revalidate

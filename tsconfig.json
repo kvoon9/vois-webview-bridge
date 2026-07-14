@@ -16,5 +16,7 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "skipLibCheck": true
-  }
+  },
+  "include": ["src", "tests", "playground/src", "blume.config.ts", "docs/**/*.ts"],
+  "exclude": ["node_modules", "dist", "docs/dist", ".blume", ".blume-*", "docs/.vitepress"]
 }

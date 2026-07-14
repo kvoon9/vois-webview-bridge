@@ -1,0 +1,12 @@
+# Wrangler config for Cloudflare Pages - Playground
+# Usage:
+#   pnpm deploy:playground
+#   wrangler pages deploy playground/dist --config wrangler.playground.toml
+
+name = "webview-bridge-playground"
+
+# Uncomment if you later add Pages Functions
+# compatibility_date = "2025-07-01"
+
+[env.production]
+# Production environment specific settings (if needed)

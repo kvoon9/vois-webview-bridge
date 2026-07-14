@@ -1,0 +1,93 @@
+name: Deploy to Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-playground:
+    runs-on: ubuntu-latest
+    name: Deploy Playground
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build playground
+        run: pnpm build:playground
+
+      - name: Deploy to Cloudflare Pages (Playground)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # Uses inline --project-name so it can be configured via GitHub variables without changing committed files.
+          # Locally: pnpm deploy:playground (uses vpx + wrangler.playground.toml)
+          command: pages deploy playground/dist --project-name=${{ vars.PLAYGROUND_PROJECT_NAME || 'webview-bridge-playground' }} --branch=${{ github.head_ref || github.ref_name }}
+          packageManager: pnpm
+
+  deploy-docs:
+    runs-on: ubuntu-latest
+    name: Deploy Docs
+    # Docs build can reference the production playground URL
+    needs: deploy-playground
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build docs
+        run: pnpm docs:build
+        env:
+          # Override in repository variables if you use a custom domain
+          PLAYGROUND_URL: ${{ vars.PLAYGROUND_URL || 'https://webview-bridge-playground.pages.dev' }}
+
+      - name: Deploy to Cloudflare Pages (Docs)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # Uses inline --project-name so it can be configured via GitHub variables without changing committed files.
+          # Locally: pnpm deploy:docs (uses vpx + wrangler.docs.toml)
+          command: pages deploy docs/.vitepress/dist --project-name=${{ vars.DOCS_PROJECT_NAME || 'webview-bridge' }} --branch=${{ github.head_ref || github.ref_name }}
+          packageManager: pnpm

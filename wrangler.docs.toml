@@ -1,0 +1,12 @@
+# Wrangler config for Cloudflare Pages - Documentation site
+# Usage:
+#   pnpm deploy:docs
+#   wrangler pages deploy docs/.vitepress/dist --config wrangler.docs.toml
+
+name = "webview-bridge"
+
+# Uncomment if you later add Pages Functions
+# compatibility_date = "2025-07-01"
+
+[env.production]
+# Production environment specific settings (if needed)
