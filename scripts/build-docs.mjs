@@ -73,4 +73,4 @@ if (existsSync(llmsFull)) {
   console.log('📄 Wrote llm.md (alias for llms-full.txt)')
 }
 
-console.log('🎉 docs:build complete.')
+console.log('🎉 build:docs complete.')

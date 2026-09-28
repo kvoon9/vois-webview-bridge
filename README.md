@@ -205,140 +205,35 @@ Full documentation (bilingual EN/ZH + LLM-friendly output) follows this structur
 4. [Native Preparation](/native/android) — Android & iOS integration with code examples
 
 ```bash
-pnpm docs:dev
-pnpm docs:build
+pnpm dev:docs
+pnpm build:docs
 ```
 
 LLM-optimized files (`llm.md`, `llms-full.txt`) are generated on build. Every page includes a "Copy as Markdown" button.
 
 ## Deployment (Cloudflare Pages)
 
-Both the documentation site and the interactive playground are deployed to Cloudflare Pages.
-
-**推荐自动部署方式**：在 Cloudflare Dashboard 中直接连接仓库（Git 集成），无需 GitHub Actions 或 secrets。
-
-**手动部署**：使用 `wrangler` CLI（通过本项目推荐的 `vpx` 执行，无需把 wrangler 加入依赖）。
-
-### One-time Setup
-
-Create the two Pages projects (via Dashboard or CLI):
+Docs + playground → Cloudflare Pages via `wrangler`（`vpx` 运行，不进依赖）。纯 CLI，不依赖 Dashboard。
 
 ```bash
-pnpm cf:projects
-vpx wrangler pages project create webview-bridge
-vpx wrangler pages project create webview-bridge-playground
-```
-
-The first deploy (manual or via Dashboard) will also auto-create the projects.
-
-### Recommended: Automatic Deployment via Cloudflare Dashboard
-
-Connect the repository in the Cloudflare Dashboard for **automatic** deploys (recommended):
-
-**Docs project**
-- Root directory: `.`
-- Build command: `pnpm install --frozen-lockfile && pnpm docs:build`
-- Build output directory: `docs/dist`
-- (Optional) Set `PLAYGROUND_URL` environment variable to your playground URL
-
-**Playground project**
-- Root directory: `.`
-- Build command: `pnpm install --frozen-lockfile && pnpm build:playground`
-- Build output directory: `playground/dist`
-
-- Push to `main` → production deploys
-- Pull requests → preview deployments (native Cloudflare support)
-
-No GitHub secrets or workflows are required.
-
-### 使用 Wrangler CLI 部署（本地手动 / 脚本方式）
-
-Cloudflare 官方 CLI 工具是 **`wrangler`**。我们推荐通过 Vite+ 的 `vpx` 来运行（无需加入 devDependencies）。
-
-#### 常用命令
-
-```bash
-# 1. 登录（首次使用）
+# 首次
 vpx wrangler login
-
-# 2. 查看 / 创建项目
-vpx wrangler pages project list
 vpx wrangler pages project create webview-bridge
 vpx wrangler pages project create webview-bridge-playground
 
-# 3. 构建并部署（推荐）
+# 构建 + 部署
 pnpm build:site && pnpm deploy
 
-# 或者分开
-pnpm docs:build && pnpm deploy:docs
+# 分开
+pnpm build:docs && pnpm deploy:docs
 pnpm build:playground && pnpm deploy:playground
 
-# 4. 查看最近部署
-vpx wrangler pages deployment list --config wrangler.docs.toml
-```
-
-#### 当前项目提供的部署相关脚本
-
-```json
-{
-  // 构建
-  "build:playground": "...",
-  "docs:build": "...",
-  "build:site": "pnpm build:playground && pnpm docs:build",
-
-  // 部署（推荐）
-  "deploy": "pnpm run deploy:playground && pnpm run deploy:docs",
-  "deploy:docs": "vpx wrangler pages deploy docs/dist --config wrangler.docs.toml",
-  "deploy:playground": "vpx wrangler pages deploy playground/dist --config wrangler.playground.toml",
-
-  // Cloudflare 辅助命令
-  "cf:login": "vpx wrangler login",
-  "cf:projects": "vpx wrangler pages project list",
-  "cf:deployments:docs": "vpx wrangler pages deployment list --config wrangler.docs.toml"
-}
-```
-
-推荐用法：
-
-```bash
-# 一次性构建并部署两个站点（playground 先部署）
-pnpm build:site && pnpm deploy
-
-# 或者分开执行
-pnpm build:playground && pnpm deploy:playground
-pnpm docs:build && pnpm deploy:docs
-```
-
-我们使用独立的 `wrangler.*.toml` 配置文件。使用 `vpx` 可以在不把 wrangler 加入依赖的情况下执行。
-
-#### 高级用法（传参 / 预览部署）
-
-```bash
-# 通过 -- 传递额外参数给 wrangler（推荐方式）
+# 预览分支
 pnpm deploy:docs -- --branch=feature-xxx
-pnpm deploy:playground -- --branch=feature-xxx --project-name=other-name
 
-# 或者直接使用 vpx
-vpx wrangler pages deploy docs/dist \
-  --config wrangler.docs.toml \
-  --branch=feature-xxx
+# CI / 非交互
+CLOUDFLARE_API_TOKEN=... pnpm deploy
 ```
 
-完整一键部署（先 playground 再 docs）：
+项目名：`vois-webview-bridge-docs` / `vois-webview-bridge-playground`。
 
-```bash
-pnpm build:site && pnpm deploy
-```
-
-#### 使用环境变量认证（非交互式 / 脚本环境）
-
-```bash
-CLOUDFLARE_API_TOKEN=your_token_here pnpm deploy:docs
-
-# 或者
-CLOUDFLARE_API_TOKEN=xxx vpx wrangler pages deploy ... --config wrangler.docs.toml
-```
-
-> **提示**：如果你使用 Cloudflare Dashboard Git 集成做自动部署，就不需要在 GitHub 里放任何 Cloudflare Token。
-
-```
