@@ -21,6 +21,11 @@
       "import": "./dist/index.mjs",
       "default": "./dist/index.mjs"
     },
+    "./debug": {
+      "types": "./dist/debug/index.d.mts",
+      "import": "./dist/debug/index.mjs",
+      "default": "./dist/debug/index.mjs"
+    },
     "./vois": {
       "types": "./dist/vois.d.mts",
       "import": "./dist/vois.mjs",
@@ -37,21 +42,16 @@
     "test": "vp test",
     "check": "vp check",
     "prepublishOnly": "vp run build",
+    "dev:docs": "blume dev",
     "dev:playground": "pnpm --dir playground dev",
+    "build:docs": "node scripts/build-docs.mjs",
     "build:playground": "pnpm --dir playground build",
+    "build:site": "pnpm build:playground && pnpm build:docs",
+    "preview:docs": "blume preview",
     "preview:playground": "pnpm --dir playground preview",
-    "docs:dev": "blume dev",
-    "docs:build": "node scripts/build-docs.mjs",
-    "docs:preview": "blume preview",
-    "build:site": "pnpm build:playground && pnpm docs:build",
     "deploy": "pnpm run deploy:playground && pnpm run deploy:docs",
-    "deploy:docs": "vpx wrangler pages deploy docs/dist --config wrangler.docs.toml",
-    "deploy:playground": "vpx wrangler pages deploy playground/dist --config wrangler.playground.toml",
-    "cf:login": "vpx wrangler login",
-    "cf:whoami": "vpx wrangler whoami",
-    "cf:projects": "vpx wrangler pages project list",
-    "cf:deployments:docs": "vpx wrangler pages deployment list --config wrangler.docs.toml",
-    "cf:deployments:playground": "vpx wrangler pages deployment list --config wrangler.playground.toml"
+    "deploy:docs": "vpx wrangler pages deploy docs/dist --project-name=vois-webview-bridge-docs --force",
+    "deploy:playground": "vpx wrangler pages deploy playground/dist --project-name=vois-webview-bridge-playground --force"
   },
   "devDependencies": {
     "@astrojs/mdx": "^7.0.2",

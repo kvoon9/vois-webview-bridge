@@ -3,6 +3,7 @@ import type { WebviewBridge } from '../types.ts'
 import { whenWebViewJavascriptBridge } from './android.ts'
 import { Bridge } from './bridge.ts'
 import { createAndroidHandler, createIosHandler } from './constants.ts'
+import { getDebugBridge } from './debug.ts'
 import { whenIosUniHandler } from './ios.ts'
 
 type ReadyListener = (bridge: WebviewBridge) => void
@@ -34,9 +35,27 @@ async function startWaiting(): Promise<void> {
   } else if (isIOS()) {
     await whenIosUniHandler()
     deliver(Bridge.create(createIosHandler()))
+  } else {
+    await startDebugWaiting()
   }
+}
 
-  // Desktop / unknown UA: empty-wait forever.
+/**
+ * Desktop / unknown UA. Only a debug entry gives this a bridge; otherwise the wait
+ * stays empty forever, which is what `isSupportBridge` reports.
+ *
+ * Desktop waits only for a debug entry, and only a caller that already enabled one
+ * reaches here: the wait starts on the first `onBridgeReady`, so anything that
+ * enables a bridge has had its chance by then.
+ */
+async function startDebugWaiting(): Promise<void> {
+  const debug = getDebugBridge()
+  if (!debug || readyBridge) return
+  try {
+    deliver(Bridge.create(await debug))
+  } catch (error: unknown) {
+    console.error('[@vois/webview-bridge] debug login failed', error)
+  }
 }
 
 function ensureWaitStarted(): void {

@@ -1,3 +1,5 @@
+import { isDebugBridgeEnabled } from './bridge/debug.ts'
+
 export function isAndroid(
   ua: string = typeof navigator !== 'undefined' ? navigator.userAgent : '',
 ): boolean {
@@ -15,6 +17,7 @@ export function isIOS(
  * Whether this environment is worth waiting on for a native bridge.
  *
  * - Android / iOS UA → `true` even if the native object is not injected yet
+ * - A debug entry was imported → `true`, since it supplies the bridge itself
  * - Otherwise → `false`
  *
  * Does not start waiting and does not mean `send`/`request` are usable yet.
@@ -23,5 +26,5 @@ export function isIOS(
 export function isSupportBridge(
   ua: string = typeof navigator !== 'undefined' ? navigator.userAgent : '',
 ): boolean {
-  return isAndroid(ua) || isIOS(ua)
+  return isAndroid(ua) || isIOS(ua) || isDebugBridgeEnabled()
 }

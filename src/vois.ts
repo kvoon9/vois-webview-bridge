@@ -1,5 +1,20 @@
 // ── Built-in Vois / Weila app payload types ──
 
+/** Request body for protocol `get-page-params`. */
+export interface GetPageParams {
+  /** Which page is asking, for native's own logging. */
+  page: string
+  /** Names to read; an empty list means everything native injects by default. */
+  params: readonly string[]
+}
+
+/** Response body for protocol `get-page-params`; values are flat scalars by contract. */
+export interface PageParamsRes {
+  errcode: number
+  errmsg: string
+  data?: Record<string, string | number | boolean>
+}
+
 /** Request body for protocol `wechat-app-prepay`. */
 export interface WechatPrepay {
   appid: string
@@ -59,6 +74,7 @@ export interface IOSPayRes {
  */
 export interface VoisAppProtocolMap {
   'close-page': {}
+  'get-page-params': { data: GetPageParams; response: PageParamsRes }
   'wechat-app-prepay': { data: WechatPrepay; response: WechatPayRes }
   'ios-app-prepay': { data: IOSPrepay; response: IOSPayRes }
 }
