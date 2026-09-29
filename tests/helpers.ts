@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, vi } from 'vite-plus/test'
 
 import { resetAndroidInitState } from '../src/bridge/android.ts'
+import { resetDebugBridge } from '../src/bridge/debug.ts'
 import { resetBridgeState } from '../src/bridge/ready.ts'
 import { onBridgeReady } from '../src/index.ts'
 import type { WebViewJavascriptBridge, WebviewBridge } from '../src/types.ts'
@@ -60,6 +61,7 @@ export function setupBridgeTestLifecycle() {
   beforeEach(() => {
     resetAndroidInitState()
     resetBridgeState()
+    resetDebugBridge()
     delete window.WebViewJavascriptBridge
     delete window.webkit
   })

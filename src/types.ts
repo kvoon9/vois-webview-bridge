@@ -17,7 +17,7 @@ export interface WebViewJavascriptBridge {
 export interface UniBridgeCallPayload<T = unknown> {
   type: string
   data: T
-  /** iOS only: global function name native will invoke with the response. */
+  /** iOS only: global function name native must invoke with the response, echoing the exact value supplied. */
   callbackName?: string
 }
 

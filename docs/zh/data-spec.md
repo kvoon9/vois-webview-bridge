@@ -5,7 +5,6 @@ sidebar:
   order: 2
 ---
 
-
 本文档描述通过 `uniBridgeCall` 桥接交换的数据格式。
 
 核心目标很简单：让大家看懂 **JS 怎么把数据发给 Native**，以及 **Native 怎么把数据回给 JS**。
@@ -28,7 +27,7 @@ JavaScript 每次调用都会发送下面这种结构的 JSON：
 | `type` | 协议名称，例如 `close-page`、`get-user-info`、`log-event` |
 | `data` | 负载数据。始终是一个对象（无数据时传 `{}`）               |
 
-对于需要响应的调用（JS 侧使用库的 `request()`），iOS 还会额外带上 `callbackName`。Android 不使用这个字段，响应通过 callHandler 的回调直接返回。
+对于需要响应的调用（JS 侧使用库的 `request()`），iOS 还会额外带上 `callbackName`。Android 不使用这个字段，响应通过 callHandler 的回调直接返回。原生必须回传收到的确切名字：每次请求的名字都唯一，迟到的响应不会落到更新的请求上。
 
 ### 示例
 
@@ -97,6 +96,6 @@ JavaScript 每次调用都会发送下面这种结构的 JSON：
 ## Native 如何把响应传回 JS
 
 - **Android**：在你注册 `uniBridgeCall` handler 时收到的 callback 上调用 `callback.onCallBack(jsonString)`
-- **iOS**：调用 payload 里 `callbackName` 对应的全局函数：`window[callbackName](jsonString)`
+- **iOS**：调用 payload 里 `callbackName` 对应的全局函数：`window[callbackName](jsonString)`，必须回传 payload 中的确切值。
 
 JS 侧会把收到的字符串解析成 JSON。如果解析失败，Promise 会 reject。业务错误（`errcode != 0`）会作为 resolved 值返回，不会导致桥接调用失败。

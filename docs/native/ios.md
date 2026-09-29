@@ -6,9 +6,6 @@ sidebar:
   order: 22
 ---
 
-
-
-
 This page explains how to handle bridge messages on iOS using `WKWebView`.
 
 ## Overview
@@ -21,7 +18,7 @@ window.webkit.messageHandlers.uniBridgeCall.postMessage(jsonString)
 
 - The message handler name **must** be exactly `uniBridgeCall`.
 - For `request` calls, a `callbackName` is included in the payload.
-- To respond, evaluate JavaScript: `window[callbackName](jsonResponseString)`
+- To respond, evaluate JavaScript with the exact name from the payload: `window[callbackName](jsonResponseString)`. Names are unique per request, so a late reply can never land on a newer request.
 
 The JS side polls for the existence of the handler (no `ready` event is fired by the system).
 
@@ -134,7 +131,7 @@ private func sendResponse(_ response: [String: Any], to callbackName: String?) {
 ## Important Details
 
 - The handler name must be **exactly** `uniBridgeCall`.
-- Only call `sendResponse` when `callbackName` exists (i.e., `request` calls).
+- Only call `sendResponse` when `callbackName` exists (i.e., `request` calls); always use the exact value from the payload.
 - Always respond with a **JSON string** passed to the global callback function.
 - Escape the JSON string properly when building the JavaScript call.
 - The message handler may be registered before or after the page loads; the JS side will poll until it appears.

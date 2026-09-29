@@ -6,8 +6,6 @@ sidebar:
   order: 22
 ---
 
-
-
 # 原生端准备 — iOS
 
 本文档介绍如何在 iOS 使用 `WKWebView` 处理桥接消息。
@@ -22,7 +20,7 @@ window.webkit.messageHandlers.uniBridgeCall.postMessage(jsonString)
 
 - Handler 名称**必须**精确为 `uniBridgeCall`。
 - `request` 调用时，负载中会包含 `callbackName`。
-- 返回响应时执行：`window[callbackName](jsonResponseString)`。
+- 返回响应时使用负载中的确切名字：`window[callbackName](jsonResponseString)`。每次请求的名字都唯一，迟到的响应不会落到更新的请求上。
 
 JavaScript 侧会轮询该 handler 是否存在（系统不会主动派发 ready 事件）。
 
@@ -124,7 +122,7 @@ private func sendResponse(_ response: [String: Any], to callbackName: String?) {
 ## 注意事项
 
 - Handler 名称必须精确为 `uniBridgeCall`。
-- 仅当 `callbackName` 存在时才响应（即 `request` 调用）。
+- 仅当 `callbackName` 存在时才响应（即 `request` 调用）；始终使用负载中的确切值。
 - 必须将 JSON 字符串传递给对应的全局回调函数。
 - 构造 JavaScript 调用时需要正确转义。
 - Handler 可能在页面加载前后注册，JS 侧会持续轮询。

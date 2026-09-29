@@ -62,6 +62,21 @@ function formatError(error: unknown): string {
   return String(error)
 }
 
+const SECRET_KEYS = ['access-token', 'accessToken']
+
+/** Never print a live token into the on-page log. */
+function redactSecrets(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null) return value
+  const data = (value as { data?: unknown }).data
+  if (typeof data !== 'object' || data === null) return value
+  const redacted = { ...data } as Record<string, unknown>
+  if (!SECRET_KEYS.some((key) => key in redacted)) return value
+  for (const key of SECRET_KEYS) {
+    if (key in redacted) redacted[key] = '***'
+  }
+  return { ...value, data: redacted }
+}
+
 function parseData(): unknown {
   const raw = dataEl.value.trim()
   if (raw === '') {
@@ -101,7 +116,7 @@ async function performRequest(type: string, data: unknown): Promise<void> {
   log(`request(${JSON.stringify(type)}, ${JSON.stringify(data)})`)
   try {
     const result = await bridge.request(type, data)
-    log(`response: ${JSON.stringify(result, null, 2)}`)
+    log(`response: ${JSON.stringify(redactSecrets(result), null, 2)}`)
   } catch (error) {
     log(`request error: ${formatError(error)}`)
   }
@@ -150,7 +165,7 @@ requestBtn.addEventListener('click', () => {
       const data = parseData()
       log(`request(${JSON.stringify(type)}, ${JSON.stringify(data)})`)
       const result = await bridge.request(type, data)
-      log(`response: ${JSON.stringify(result, null, 2)}`)
+      log(`response: ${JSON.stringify(redactSecrets(result), null, 2)}`)
     } catch (error) {
       log(`request error: ${formatError(error)}`)
     }

@@ -1,6 +1,6 @@
 ---
 title: Web Usage
-description: "Using the bridge from web pages — installation, bridge instance, error handling, built-in and custom protocols"
+description: 'Using the bridge from web pages — installation, bridge instance, error handling, built-in and custom protocols'
 sidebar:
   order: 10
 ---
@@ -125,11 +125,12 @@ import '@vois/webview-bridge/vois'
 
 After this import, the following protocols become available with full type information:
 
-| Protocol            | Mode    | Payload Type   | Response Type  | Description                 |
-| ------------------- | ------- | -------------- | -------------- | --------------------------- |
-| `close-page`        | send    | —              | —              | Close current WebView page  |
-| `wechat-app-prepay` | request | `WechatPrepay` | `WechatPayRes` | WeChat Pay (mainly Android) |
-| `ios-app-prepay`    | request | `IOSPrepay`    | `IOSPayRes`    | In-app purchase (iOS)       |
+| Protocol            | Mode    | Payload Type    | Response Type   | Description                                               |
+| ------------------- | ------- | --------------- | --------------- | --------------------------------------------------------- |
+| `close-page`        | send    | —               | —               | Close current WebView page                                |
+| `get-page-params`   | request | `GetPageParams` | `PageParamsRes` | Page parameters; `params: ['access-token']` for the token |
+| `wechat-app-prepay` | request | `WechatPrepay`  | `WechatPayRes`  | WeChat Pay (mainly Android)                               |
+| `ios-app-prepay`    | request | `IOSPrepay`     | `IOSPayRes`     | In-app purchase (iOS)                                     |
 
 ### Usage Example
 

@@ -5,7 +5,6 @@ sidebar:
   order: 2
 ---
 
-
 This document describes the data format exchanged over the `uniBridgeCall` bridge.
 
 The goal is simple: make it clear what **JS sends to native**, and how **native replies with data**.
@@ -28,7 +27,7 @@ Every call from JavaScript sends a JSON object with this shape:
 | `type` | Protocol name, e.g. `close-page`, `get-user-info`, `log-event` |
 | `data` | Payload. Always an object (use `{}` when no data is needed)    |
 
-For calls that need a response (library `request()`), iOS also includes a `callbackName`. Android does not use this field — the response is delivered through the callHandler callback instead.
+For calls that need a response (library `request()`), iOS also includes a `callbackName`. Android does not use this field — the response is delivered through the callHandler callback instead. Native must invoke the exact name it receives: names are unique per request, so a late reply cannot land on a newer request.
 
 ### Examples
 
@@ -97,6 +96,6 @@ When JS uses `request()` (i.e. expects a reply), native **must** return a JSON s
 ## How native delivers the reply
 
 - **Android**: Call the response callback that was passed when you registered the `uniBridgeCall` handler: `callback.onCallBack(jsonString)`
-- **iOS**: Call the global function whose name was provided in `callbackName`: `window[callbackName](jsonString)`
+- **iOS**: Call the global function whose name was provided in `callbackName`: `window[callbackName](jsonString)`. Echo the exact value from the payload.
 
 The JS side parses the string as JSON. If parsing fails, the promise rejects with a protocol error. Business errors (`errcode != 0`) are returned as resolved values — the bridge call itself succeeds.

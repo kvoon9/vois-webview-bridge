@@ -97,11 +97,15 @@ declare module '@vois/webview-bridge' {
 
 This brings in the following protocols:
 
-| Protocol `type`     | Mode    | Data           | Response       |
-| ------------------- | ------- | -------------- | -------------- |
-| `close-page`        | send    | none           | —              |
-| `wechat-app-prepay` | request | `WechatPrepay` | `WechatPayRes` |
-| `ios-app-prepay`    | request | `IOSPrepay`    | `IOSPayRes`    |
+| Protocol `type`     | Mode    | Data            | Response        |
+| ------------------- | ------- | --------------- | --------------- |
+| `close-page`        | send    | none            | —               |
+| `get-page-params`   | request | `GetPageParams` | `PageParamsRes` |
+| `wechat-app-prepay` | request | `WechatPrepay`  | `WechatPayRes`  |
+| `ios-app-prepay`    | request | `IOSPrepay`     | `IOSPayRes`     |
+
+The access token is a page parameter: request `get-page-params` with
+`params: ['access-token']` and read `data['access-token']`.
 
 You can freely mix built-in protocols with your own:
 
@@ -178,12 +182,27 @@ There is no connect timeout and no request timeout. Degrade with `isSupportBridg
 
 ### Transport (what we actually use)
 
-| Platform    | Channel                                                      | Notes                                                                  |
-| ----------- | ------------------------------------------------------------ | ---------------------------------------------------------------------- |
-| **Android** | `WebViewJavascriptBridge.callHandler('uniBridgeCall', …)`    | Wait for `WebViewJavascriptBridgeReady`; `init` once                   |
-| **iOS**     | `window.webkit.messageHandlers.uniBridgeCall.postMessage(…)` | Wait until handler injects (poll); response via `window[callbackName]` |
+| Platform    | Channel                                                      | Notes                                                                                            |
+| ----------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| **Android** | `WebViewJavascriptBridge.callHandler('uniBridgeCall', …)`    | Wait for `WebViewJavascriptBridgeReady`; `init` once                                             |
+| **iOS**     | `window.webkit.messageHandlers.uniBridgeCall.postMessage(…)` | Wait until handler injects (poll); response via the exact `callbackName` supplied on the payload |
 
 Legacy WVJB helpers (`exit`, `wxPayReqV2`, `savePicture`, …) are **not** part of this package.
+
+## Debug bridge (dev / debug preview only)
+
+`@vois/webview-bridge/debug` provides a synthetic bridge for pages served without a native side:
+
+```ts
+import { enableDebugBridge, getDebugAccessToken } from '@vois/webview-bridge/debug'
+
+if (isWebviewDebug()) enableDebugBridge()
+```
+
+- `enableDebugBridge(credentials?)` — registers a bridge that is ready immediately. Its `get-page-params` answers static debug environment params (plus any params the local bridge was constructed with) and **never logs in**, so native-returned page params stay the first source of truth.
+- `getDebugAccessToken()` — the explicit fallback. Only when `get-page-params` had no `access-token` should a dev / debug-preview page call this; it logs in with the fixed debug account (or the credentials passed to `enableDebugBridge`) and resolves the token. Concurrent calls share one login, a success is reused, and a failure is forgotten so the next call retries.
+
+Gate both behind your own debug detection and never import this entry from shipped code paths.
 
 ## Develop
 
@@ -236,4 +255,3 @@ CLOUDFLARE_API_TOKEN=... pnpm deploy
 ```
 
 项目名：`vois-webview-bridge-docs` / `vois-webview-bridge-playground`。
-

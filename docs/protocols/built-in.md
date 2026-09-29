@@ -4,7 +4,6 @@ sidebar:
   order: 40
 ---
 
-
 The Vois / Weila application provides the following built-in protocols:
 
 ```ts
@@ -25,6 +24,24 @@ Closes the current WebView page.
 ```ts
 bridge.send('close-page')
 ```
+
+### get-page-params
+
+Reads native-injected page parameters as a flat map of scalars (`login-id`, `device-type`, `lang`, …).
+
+```ts
+// The access token is a page parameter; ask for it by name.
+const result = await bridge.request('get-page-params', {
+  page: 'settings',
+  params: ['access-token'],
+})
+
+if (result.errcode === 0) {
+  const token = result.data?.['access-token'] ?? ''
+}
+```
+
+An empty `params` list returns everything native injects by default, including `access-token` and `login-id` when they are available.
 
 ### wechat-app-prepay
 

@@ -1,6 +1,6 @@
 ---
 title: Web 端使用
-description: "从 Web 页面使用桥接 —— 安装、获取实例、错误处理、内置与自定义协议"
+description: '从 Web 页面使用桥接 —— 安装、获取实例、错误处理、内置与自定义协议'
 sidebar:
   order: 10
 ---
@@ -123,11 +123,12 @@ import '@vois/webview-bridge/vois'
 
 引入后可使用以下协议，并获得完整类型：
 
-| 协议名              | 模式    | 请求类型       | 响应类型       | 说明                     |
-| ------------------- | ------- | -------------- | -------------- | ------------------------ |
-| `close-page`        | send    | —              | —              | 关闭当前 WebView 页面    |
-| `wechat-app-prepay` | request | `WechatPrepay` | `WechatPayRes` | 微信支付（主要 Android） |
-| `ios-app-prepay`    | request | `IOSPrepay`    | `IOSPayRes`    | 应用内购（iOS）          |
+| 协议名              | 模式    | 请求类型        | 响应类型        | 说明                                            |
+| ------------------- | ------- | --------------- | --------------- | ----------------------------------------------- |
+| `close-page`        | send    | —               | —               | 关闭当前 WebView 页面                           |
+| `get-page-params`   | request | `GetPageParams` | `PageParamsRes` | 页面参数；`params: ['access-token']` 获取 token |
+| `wechat-app-prepay` | request | `WechatPrepay`  | `WechatPayRes`  | 微信支付（主要 Android）                        |
+| `ios-app-prepay`    | request | `IOSPrepay`     | `IOSPayRes`     | 应用内购（iOS）                                 |
 
 ### 使用示例
 
