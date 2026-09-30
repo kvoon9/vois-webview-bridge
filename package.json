@@ -1,6 +1,6 @@
 {
   "name": "@vois/webview-bridge",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "JS → native WebView bridge protocol for Vois / Weila H5 pages (uniBridgeCall).",
   "keywords": [
     "bridge",
@@ -47,6 +47,7 @@
     "test": "vp test",
     "check": "vp check",
     "prepublishOnly": "vp run build",
+    "release": "bumpp && pnpm publish",
     "dev:docs": "blume dev",
     "dev:playground": "pnpm --dir playground dev",
     "build:docs": "node scripts/build-docs.mjs",
