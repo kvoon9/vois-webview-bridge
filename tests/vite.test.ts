@@ -8,7 +8,7 @@ import {
   type Socket,
 } from 'node:net'
 
-import { afterEach, describe, expect, test } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { DEBUG_ACCESS_TOKEN_PATH } from '../src/debug/access-token-path.ts'
 import {
@@ -288,6 +288,22 @@ async function requestThrough(
 }
 
 describe('voisBridgeAuth', () => {
+  test('declares itself `pre` so no SPA fallback answers its endpoints first', () => {
+    // Load-bearing: plugin hooks are sorted by enforce before they are called, and
+    // the debug plugin's preview HTML middleware is also `pre` and answers every
+    // dotless GET with index.html.
+    expect(voisBridgeAuth().enforce).toBe('pre')
+  })
+
+  test('mints at mount so the first page read meets a live session', async () => {
+    const gateway = await startGateway('warm-token')
+    const apiBase = await startGatewayApi(gateway.host, gateway.port)
+
+    voisBridgeAuth({ apiBase }).configureServer({ middlewares: { use: () => {} } })
+
+    await vi.waitFor(() => expect(gateway.connections()).toBe(1))
+  })
+
   test('answers the debug login with the minted token and its account', async () => {
     const gateway = await startGateway('plugin-token', 441)
     const apiBase = await startGatewayApi(gateway.host, gateway.port)

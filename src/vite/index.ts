@@ -56,6 +56,8 @@ export interface ViteServerLike {
 }
 export interface VitePluginLike {
   name: string
+  /** `pre` keeps these endpoints ahead of other plugins' fallback middlewares. */
+  enforce?: 'pre'
   configureServer(server: ViteServerLike): void
   configurePreviewServer(server: ViteServerLike): void
 }
@@ -170,13 +172,30 @@ export function voisBridgeAuth(options: VoisBridgeAuthOptions = {}): VitePluginL
     )
   }
 
+  /**
+   * Mint before a page asks for anything. A cold mint is a gateway lookup plus a
+   * TCP login, which can outlast the few seconds a page allows a page-param read;
+   * that read waits for this session, so warming at mount is what keeps a freshly
+   * started server from answering its first page with a timeout.
+   */
+  function warmSession(): void {
+    void minter.get().catch(() => {})
+  }
+
   return {
     name: 'vois-webview-bridge-auth',
+    // The endpoints have to sit ahead of every SPA fallback: a debug plugin's
+    // preview middleware (also `pre`) answers index.html for any dotless GET, so the
+    // token read would never reach this handler. `pre` plus an earlier spot in the
+    // app's plugin list keeps this middleware in front.
+    enforce: 'pre',
     configureServer(server) {
       server.middlewares.use(handler)
+      warmSession()
     },
     configurePreviewServer(server) {
       server.middlewares.use(handler)
+      warmSession()
     },
   }
 }
