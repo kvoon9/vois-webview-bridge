@@ -2,8 +2,12 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/tes
 
 vi.mock('../src/debug/login.ts', () => ({ loginForToken: vi.fn() }))
 
-import { createDebugLoginGetter, createLocalBridge } from '../src/debug/bridge.ts'
-import { enableDebugBridge, getDebugAccessToken } from '../src/debug/index.ts'
+import {
+  createDebugLoginGetter,
+  createLocalBridge,
+  resetDebugPageParams,
+} from '../src/debug/bridge.ts'
+import { enableDebugBridge, getDebugAccessToken, loginWithCredentials } from '../src/debug/index.ts'
 import { loginForToken, type DebugLogin } from '../src/debug/login.ts'
 import { onBridgeReady } from '../src/index.ts'
 import type { NativeCall, WebviewBridge } from '../src/types.ts'
@@ -16,6 +20,7 @@ const mockedLogin = vi.mocked(loginForToken)
 
 beforeEach(() => {
   mockedLogin.mockReset()
+  resetDebugPageParams()
 })
 
 function request(nativeCall: NativeCall, type: string, data?: unknown): Promise<unknown> {
@@ -166,6 +171,85 @@ describe('getDebugAccessToken', () => {
 
     await expect(getDebugAccessToken()).resolves.toBe('debug-token')
     expect(mockedLogin).toHaveBeenCalledWith(credentials)
+  })
+})
+
+describe('loginWithCredentials', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  test('posts the credentials and resolves with the served login', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ token: 'served-token', userId: 441 }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      loginWithCredentials({ account: 'a', password: 'b', countryCode: '86' }),
+    ).resolves.toEqual({ token: 'served-token', userId: 441 })
+    expect(fetchMock).toHaveBeenCalledWith('/__vois-bridge/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ account: 'a', password: 'b', countryCode: '86' }),
+    })
+  })
+
+  test('throws the server rejection message verbatim', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 502,
+        json: async () => ({ error: '登录失败: resultCode=105 (账号或密码错误)' }),
+      }),
+    )
+
+    await expect(
+      loginWithCredentials({ account: 'a', password: 'wrong', countryCode: '86' }),
+    ).rejects.toThrow('账号或密码错误')
+  })
+
+  test('falls back to the status code when the body is unreadable', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        json: async () => {
+          throw new Error('not json')
+        },
+      }),
+    )
+
+    await expect(
+      loginWithCredentials({ account: 'a', password: 'b', countryCode: '86' }),
+    ).rejects.toThrow('HTTP 404')
+  })
+
+  test('makes the live bridge answer login-id for the account that signed in', async () => {
+    enableDebugBridge()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ token: 'served-token', userId: 1541034 }),
+      }),
+    )
+
+    await expect(
+      loginWithCredentials({ account: 'a', password: 'b', countryCode: '86' }),
+    ).resolves.toEqual({ token: 'served-token', userId: 1541034 })
+
+    const onReady = vi.fn()
+    onBridgeReady(onReady)
+    const bridge = onReady.mock.calls[0]![0] as WebviewBridge
+    await expect(
+      bridge.request('get-page-params', { page: 'test', params: ['login-id'] }),
+    ).resolves.toEqual({ errcode: 0, errmsg: '', data: { 'login-id': '1541034' } })
   })
 })
 

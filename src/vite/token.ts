@@ -52,10 +52,19 @@ export interface AccessTokenMinterOptions {
 export interface AccessTokenMinter {
   /** A usable token, minting or re-minting when the session behind it is gone. */
   get(): Promise<string>
+  /**
+   * Sign in as a different account right away and resolve with that session.
+   *
+   * The credentials become the minter's own, so every later re-mint (TTL, dropped
+   * socket) stays on this account until another `login` swaps it again.
+   */
+  login(credentials: DebugCredentials): Promise<{ token: string; userId?: number }>
 }
 
 export interface GatewaySession {
   token: string
+  /** The account the token belongs to; native exposes the same value as `login-id`. */
+  userId?: number
   /**
    * The live sign-in socket. A gateway token is valid only while the socket that
    * asked for it stays open — closing it kills the token within about a minute —
@@ -121,11 +130,11 @@ export function loginOverTcp(
       socket.destroy()
       reject(error)
     }
-    const succeed = (token: string): void => {
+    const succeed = (session: Omit<GatewaySession, 'socket'>): void => {
       if (settled) return
       settled = true
       socket.setTimeout(0)
-      resolve({ token, socket })
+      resolve({ ...session, socket })
     }
 
     socket.setTimeout(timeoutMs, () => fail(new Error(`等待网关响应超时 (${timeoutMs}ms)`)))
@@ -154,7 +163,7 @@ export function loginOverTcp(
         try {
           const login = readLoginResult(payload)
           if (login) {
-            succeed(login.token)
+            succeed(login)
             return
           }
         } catch (error) {
@@ -176,14 +185,14 @@ export function loginOverTcp(
  * the next caller retries.
  */
 export function createAccessTokenMinter(options: AccessTokenMinterOptions = {}): AccessTokenMinter {
-  const credentials = options.credentials ?? DEFAULT_DEBUG_CREDENTIALS
+  let credentials = options.credentials ?? DEFAULT_DEBUG_CREDENTIALS
   const apiBase = options.apiBase ?? DEFAULT_API_BASE
   const appId = options.appId ?? APP_ID
   const appKey = options.appKey ?? APP_KEY
   const ttlMs = options.ttlMs ?? DEFAULT_TOKEN_TTL_MS
 
   let session: (GatewaySession & { expiresAt: number; timer: NodeJS.Timeout }) | null = null
-  let pending: Promise<string> | null = null
+  let pending: Promise<GatewaySession & { expiresAt: number; timer: NodeJS.Timeout }> | null = null
 
   function closeSession(): void {
     if (!session) return
@@ -192,7 +201,7 @@ export function createAccessTokenMinter(options: AccessTokenMinterOptions = {}):
     session = null
   }
 
-  async function mint(): Promise<string> {
+  async function mint() {
     closeSession()
 
     const address = await readGateway(apiBase, appId, appKey, credentials)
@@ -212,16 +221,25 @@ export function createAccessTokenMinter(options: AccessTokenMinterOptions = {}):
     timer.unref()
 
     session = { ...opened, expiresAt: Date.now() + ttlMs, timer }
-    return opened.token
+    return session
+  }
+
+  /** Mint with whatever `credentials` holds, sharing one in-flight login. */
+  function run(): Promise<GatewaySession & { expiresAt: number; timer: NodeJS.Timeout }> {
+    pending ??= mint().finally(() => {
+      pending = null
+    })
+    return pending
   }
 
   return {
     get(): Promise<string> {
       if (session && session.expiresAt > Date.now()) return Promise.resolve(session.token)
-      pending ??= mint().finally(() => {
-        pending = null
-      })
-      return pending
+      return run().then((opened) => opened.token)
+    },
+    login(next: DebugCredentials): Promise<{ token: string; userId?: number }> {
+      credentials = next
+      return run().then(({ token, userId }) => ({ token, userId }))
     },
   }
 }

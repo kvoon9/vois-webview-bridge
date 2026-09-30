@@ -1,6 +1,6 @@
 import { setDebugBridge } from '../bridge/debug.ts'
-import { DEBUG_ACCESS_TOKEN_PATH } from './access-token-path.ts'
-import { createDebugLoginGetter, createLocalBridge } from './bridge.ts'
+import { DEBUG_ACCESS_TOKEN_PATH, DEBUG_LOGIN_PATH } from './access-token-path.ts'
+import { createDebugLoginGetter, createLocalBridge, setDebugPageParams } from './bridge.ts'
 import { DEFAULT_DEBUG_CREDENTIALS } from './credentials.ts'
 import type { DebugCredentials, DebugLogin } from './login.ts'
 
@@ -49,6 +49,43 @@ export async function getDebugAccessToken(): Promise<string> {
   if (served) return served
   fallbackLogin ??= createDebugLoginGetter(fallbackCredentials)
   return fallbackLogin().then((login) => login.token)
+}
+
+/**
+ * Sign in with caller-supplied credentials through the debug server.
+ *
+ * The browser cannot mint a token the `/v2` APIs accept (see `getDebugAccessToken`),
+ * so the pair is posted to the server, which signs in on the TCP gateway and
+ * adopts the account: every later `getDebugAccessToken` reads that session's
+ * token, and `get-page-params` starts answering the account's `login-id`. The
+ * response carries the server's error message verbatim (账号或密码错误， …).
+ */
+export async function loginWithCredentials(credentials: DebugCredentials): Promise<DebugLogin> {
+  const response = await fetch(DEBUG_LOGIN_PATH, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(credentials),
+  })
+  const body = (await response.json().catch(() => null)) as {
+    token?: unknown
+    userId?: unknown
+    error?: unknown
+  } | null
+  if (!response.ok || typeof body?.token !== 'string' || body.token === '') {
+    throw new Error(
+      typeof body?.error === 'string' && body.error !== ''
+        ? body.error
+        : `登录失败 (HTTP ${response.status})`,
+    )
+  }
+  const login: DebugLogin = {
+    token: body.token,
+    userId: typeof body.userId === 'number' ? body.userId : undefined,
+  }
+  // Native answers `login-id` with exactly this id, and pages key on it; adopting
+  // it here keeps every later page-param read correct without URL surgery.
+  if (login.userId !== undefined) setDebugPageParams({ 'login-id': String(login.userId) })
+  return login
 }
 
 /**

@@ -37,6 +37,32 @@ function pick(pool: Record<string, string>, names: string[]): Record<string, str
 }
 
 /**
+ * Params adopted for the debug session, outliving the pool they last landed in:
+ * a bridge created later (a re-enable, a late `onBridgeReady`) still answers them.
+ */
+const debugParams: Record<string, string> = {}
+
+/** The most recently created local bridge's param pool, when one is live. */
+let livePool: Record<string, string> | null = null
+
+/**
+ * Adopt params into the debug session, as if native had started answering
+ * with them. Later `get-page-params` reads serve them until the next call
+ * overwrites the same names; a no-op until a local bridge exists is still
+ * remembered for the next one.
+ */
+export function setDebugPageParams(params: Record<string, string>): void {
+  Object.assign(debugParams, params)
+  if (livePool) Object.assign(livePool, params)
+}
+
+/** @internal forget adopted params between tests. */
+export function resetDebugPageParams(): void {
+  for (const key of Object.keys(debugParams)) delete debugParams[key]
+  livePool = null
+}
+
+/**
  * A `NativeCall` backed by static params instead of a WebView, so the page cannot
  * tell the difference: `get-page-params` answers exactly what native would, and
  * anything else is a no-op rather than an error.
@@ -51,7 +77,8 @@ function pick(pool: Record<string, string>, names: string[]): Record<string, str
  * into a crash.
  */
 export function createLocalBridge(pageParams: Record<string, string> = {}): NativeCall {
-  const pool: Record<string, string> = { ...STATIC_PARAMS, ...pageParams }
+  const pool: Record<string, string> = { ...STATIC_PARAMS, ...debugParams, ...pageParams }
+  livePool = pool
 
   return (type, data, onResponse) => {
     if (type !== 'get-page-params') return onResponse?.('{"errcode":0,"errmsg":"","data":{}}')

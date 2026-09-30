@@ -14,6 +14,7 @@ import { DEBUG_ACCESS_TOKEN_PATH } from '../src/debug/access-token-path.ts'
 import {
   voisBridgeAuth,
   type BridgeAuthMiddleware,
+  type BridgeAuthRequest,
   type VitePluginLike,
 } from '../src/vite/index.ts'
 import { createAccessTokenMinter, loginOverTcp } from '../src/vite/token.ts'
@@ -42,7 +43,7 @@ const uint = (field: number, value: number): number[] => [...tag(field, 0), ...v
 const text = (field: number, value: string): number[] =>
   bytes(field, new TextEncoder().encode(value))
 
-function loginResponseFrame(token: string): Buffer {
+function loginResponseFrame(token: string, userId?: number): Buffer {
   const serviceHead = Uint8Array.from([
     ...uint(1, 1), // login service
     ...uint(2, 5), // login app
@@ -50,7 +51,9 @@ function loginResponseFrame(token: string): Buffer {
     ...uint(4, 1), // seq
     ...uint(8, 0), // result code: success
   ])
-  const rspLoginApp = Uint8Array.from(text(8, token))
+  // `User` (field 2) with the id in field 1, the same place readLoginResult reads it
+  const user = userId === undefined ? [] : bytes(2, Uint8Array.from(uint(1, userId)))
+  const rspLoginApp = Uint8Array.from([...text(8, token), ...user])
   const loginMessage = Uint8Array.from(bytes(13, rspLoginApp))
   const body = Uint8Array.from([...bytes(1, serviceHead), ...bytes(3, loginMessage)])
 
@@ -86,23 +89,41 @@ function listen(server: TrackedServer): Promise<number> {
 
 /**
  * A gateway node that answers every connection with one login frame and then keeps
- * the connection open, the way a real one does.
+ * the connection open, the way a real one does. A token factory answers per
+ * connection, so a test can tell sessions apart; `userId` rides every answer.
  */
 async function startGateway(
-  token: string,
-): Promise<{ host: string; port: number; connections: () => number; sockets: Socket[] }> {
+  token: string | (() => string),
+  userId?: number,
+): Promise<{
+  host: string
+  port: number
+  connections: () => number
+  sockets: Socket[]
+  frames: () => Buffer[]
+}> {
   let connections = 0
   const opened: Socket[] = []
+  const received: Buffer[] = []
   const server = track(
     createTcpServer((socket: Socket) => {
       connections += 1
       opened.push(socket)
       sockets.push(socket)
-      socket.on('data', () => socket.write(loginResponseFrame(token)))
+      socket.on('data', (chunk: Buffer) => {
+        received.push(chunk)
+        socket.write(loginResponseFrame(typeof token === 'function' ? token() : token, userId))
+      })
     }),
   )
   const port = await listen(server)
-  return { host: '127.0.0.1', port, connections: () => connections, sockets: opened }
+  return {
+    host: '127.0.0.1',
+    port,
+    connections: () => connections,
+    sockets: opened,
+    frames: () => received,
+  }
 }
 
 /** The API that hands out that node's address. */
@@ -179,6 +200,25 @@ describe('createAccessTokenMinter', () => {
     await expect(minter.get()).resolves.toBe('minted-token')
     expect(gateway.connections()).toBe(2)
   })
+
+  test('keeps the swapped credentials when the session has to re-mint', async () => {
+    const gateway = await startGateway('minted-token')
+    const apiBase = await startGatewayApi(gateway.host, gateway.port)
+    const minter = createAccessTokenMinter({ apiBase, ttlMs: 60_000 })
+
+    await expect(minter.get()).resolves.toBe('minted-token')
+    await expect(
+      minter.login({ account: 'user-account', password: 'user-pass', countryCode: '86' }),
+    ).resolves.toEqual({ token: 'minted-token', userId: undefined })
+    gateway.sockets[1]?.destroy()
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    await expect(minter.get()).resolves.toBe('minted-token')
+    // The re-mint after the drop still signs in as the swapped account, not the default.
+    const last = gateway.frames()[gateway.frames().length - 1]
+    expect(last?.includes(Buffer.from('user-account'))).toBe(true)
+    expect(last?.includes(Buffer.from('16675441248'))).toBe(false)
+  })
 })
 
 function middlewareOf(plugin: VitePluginLike): BridgeAuthMiddleware {
@@ -191,9 +231,30 @@ function middlewareOf(plugin: VitePluginLike): BridgeAuthMiddleware {
   return handler
 }
 
+/** A request whose body reaches listeners attached during the same tick, like Connect's. */
+function bodyRequest(url: string, method: string, body: string): BridgeAuthRequest {
+  const listeners = new Map<string, ((chunk?: Buffer) => void)[]>()
+  const request: BridgeAuthRequest = {
+    method,
+    url,
+    on(event, listener) {
+      const list = listeners.get(event) ?? []
+      list.push(listener)
+      listeners.set(event, list)
+    },
+    destroy() {},
+  }
+  queueMicrotask(() => {
+    for (const listener of listeners.get('data') ?? []) listener(Buffer.from(body))
+    for (const listener of listeners.get('end') ?? []) listener()
+  })
+  return request
+}
+
 async function requestThrough(
   handler: BridgeAuthMiddleware,
   url: string,
+  init: { method?: string; body?: string } = {},
 ): Promise<{ status: number; body: string; handedOver: boolean }> {
   let release = (): void => {}
   const done = new Promise<void>((resolve) => {
@@ -214,7 +275,11 @@ async function requestThrough(
     },
   }
 
-  handler({ method: 'GET', url }, response, () => {
+  const request =
+    init.body === undefined
+      ? { method: init.method ?? 'GET', url }
+      : bodyRequest(url, init.method ?? 'POST', init.body)
+  handler(request, response, () => {
     result.handedOver = true
     release()
   })
@@ -248,6 +313,69 @@ describe('voisBridgeAuth', () => {
 
     await expect(requestThrough(handler, DEBUG_ACCESS_TOKEN_PATH)).resolves.toMatchObject({
       status: 502,
+      handedOver: false,
+    })
+  })
+})
+
+describe('voisBridgeAuth login endpoint', () => {
+  test('signs in with the posted credentials and adopts the session', async () => {
+    let connections = 0
+    const gateway = await startGateway(() => `token-${++connections}`, 441)
+    const apiBase = await startGatewayApi(gateway.host, gateway.port)
+    const handler = middlewareOf(voisBridgeAuth({ apiBase }))
+
+    // A page that never logged in mints the configured account first.
+    await expect(requestThrough(handler, DEBUG_ACCESS_TOKEN_PATH)).resolves.toMatchObject({
+      status: 200,
+      body: JSON.stringify({ token: 'token-1' }),
+    })
+
+    const login = await requestThrough(handler, '/__vois-bridge/login', {
+      method: 'POST',
+      body: JSON.stringify({
+        account: 'user-account',
+        password: 'user-pass',
+        countryCode: '86',
+      }),
+    })
+    expect(login).toMatchObject({ status: 200, handedOver: false })
+    expect(JSON.parse(login.body)).toEqual({ token: 'token-2', userId: 441 })
+    // The login frame carries the account itself, so the swap really signed in as it.
+    expect(gateway.frames().some((frame) => frame.includes(Buffer.from('user-account')))).toBe(true)
+
+    // Every later read serves the logged-in session without a new connection.
+    await expect(requestThrough(handler, DEBUG_ACCESS_TOKEN_PATH)).resolves.toMatchObject({
+      status: 200,
+      body: JSON.stringify({ token: 'token-2' }),
+    })
+    expect(gateway.connections()).toBe(2)
+  })
+
+  test('rejects a malformed body', async () => {
+    const handler = middlewareOf(voisBridgeAuth({ apiBase: 'http://127.0.0.1:1' }))
+
+    await expect(
+      requestThrough(handler, '/__vois-bridge/login', { method: 'POST', body: 'not json' }),
+    ).resolves.toMatchObject({ status: 400, handedOver: false })
+  })
+
+  test('reports the gateway rejection message', async () => {
+    const handler = middlewareOf(voisBridgeAuth({ apiBase: 'http://127.0.0.1:1' }))
+
+    await expect(
+      requestThrough(handler, '/__vois-bridge/login', {
+        method: 'POST',
+        body: JSON.stringify({ account: 'a', password: 'b' }),
+      }),
+    ).resolves.toMatchObject({ status: 502, handedOver: false })
+  })
+
+  test('refuses anything but POST', async () => {
+    const handler = middlewareOf(voisBridgeAuth({ apiBase: 'http://127.0.0.1:1' }))
+
+    await expect(requestThrough(handler, '/__vois-bridge/login')).resolves.toMatchObject({
+      status: 405,
       handedOver: false,
     })
   })
