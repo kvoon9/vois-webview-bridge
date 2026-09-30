@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test, vi } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 vi.mock('../src/debug/login.ts', () => ({ loginForToken: vi.fn() }))
 
@@ -114,6 +114,26 @@ describe('createDebugLoginGetter', () => {
 })
 
 describe('getDebugAccessToken', () => {
+  beforeEach(() => {
+    // No debug server here, so the account login stays in charge by default.
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('no debug server')))
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  test('prefers the token a debug server minted', async () => {
+    enableDebugBridge()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ token: 'served-token' }) }),
+    )
+
+    await expect(getDebugAccessToken()).resolves.toBe('served-token')
+    expect(mockedLogin).not.toHaveBeenCalled()
+  })
+
   test('shares concurrent logins and reuses the token', async () => {
     enableDebugBridge()
     mockedLogin.mockResolvedValue(LOGIN)

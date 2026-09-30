@@ -26,6 +26,11 @@
       "import": "./dist/debug/index.mjs",
       "default": "./dist/debug/index.mjs"
     },
+    "./vite": {
+      "types": "./dist/vite/index.d.mts",
+      "import": "./dist/vite/index.mjs",
+      "default": "./dist/vite/index.mjs"
+    },
     "./vois": {
       "types": "./dist/vois.d.mts",
       "import": "./dist/vois.mjs",

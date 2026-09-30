@@ -1,18 +1,20 @@
 import { md5 } from './md5.ts'
 
 /**
- * Weila login over WebSocket, browser-safe.
+ * Weila login wire format, shared by the WebSocket debug login and the Node
+ * gateway login (`src/vite/token.ts`).
  *
- * The same protocol `packages/weila-token` runs in Node, ported off `Buffer` so
- * the debug bridge can log in without a server. The wire layout is load-bearing:
- * a 16 byte frame header, then protobuf, then `MD5(et + appKey)` as the signature.
+ * The layout is load-bearing: a 16 byte frame header, then protobuf, then
+ * `MD5(et + appKey)` as the signature.
  */
 
-const HEADER_SIZE = 16
+/** Frame header length; the WebSocket and TCP gateways frame messages the same way. */
+export const LOGIN_HEADER_SIZE = 16
 /** The frame header's own service id is a constant; the real one rides in the command. */
 const FRAME_SERVICE_ID = 15
 const SERVICE_LOGIN = 1
 const CMD_LOGIN_APP = 0x05
+const CMD_HEARTBEAT = 0x04
 const COMMAND_REQUEST = 0
 
 const WSS = 'wss://web.voischat.com:8080'
@@ -122,20 +124,19 @@ function decode(buffer: Uint8Array): DecodedMessage {
 }
 
 // `Uint8Array<ArrayBuffer>` rather than the default `ArrayBufferLike`: `send` needs a BufferSource.
-function encodeFrame(body: Uint8Array): Uint8Array<ArrayBuffer> {
-  const frame = new Uint8Array(HEADER_SIZE + body.length)
+function encodeFrame(body: Uint8Array, commandId = CMD_LOGIN_APP): Uint8Array<ArrayBuffer> {
+  const frame = new Uint8Array(LOGIN_HEADER_SIZE + body.length)
   const view = new DataView(frame.buffer)
   view.setInt32(0, frame.length)
   view.setInt16(4, 0)
   view.setInt16(6, 0)
   view.setInt16(8, FRAME_SERVICE_ID)
-  view.setInt16(10, (SERVICE_LOGIN << 8) | CMD_LOGIN_APP)
+  view.setInt16(10, (SERVICE_LOGIN << 8) | commandId)
   view.setInt16(12, 1)
   view.setInt16(14, 0)
-  frame.set(body, HEADER_SIZE)
+  frame.set(body, LOGIN_HEADER_SIZE)
   return frame
 }
-
 /** The wire format is public so a test can pin the byte layout without a live login. */
 export function buildLoginFrame(
   account: string,
@@ -166,27 +167,53 @@ export function buildLoginFrame(
   return encodeFrame(Uint8Array.from([...bytes(1, serviceHead), ...bytes(3, loginMessage)]))
 }
 
+/**
+ * `ReqHeartbeat` (LoginMessage 4). A gateway token lives only as long as the
+ * socket that asked for it, so a session that stays open has to keep talking.
+ */
+export function buildHeartbeatFrame(intervalSeconds = 40): Uint8Array<ArrayBuffer> {
+  const reqHeartbeat = Uint8Array.from(uint(2, intervalSeconds))
+  const loginMessage = Uint8Array.from(bytes(4, reqHeartbeat))
+  const serviceHead = Uint8Array.from([
+    ...uint(1, SERVICE_LOGIN),
+    ...uint(2, CMD_HEARTBEAT),
+    ...uint(3, COMMAND_REQUEST),
+    ...uint(4, 1),
+  ])
+
+  return encodeFrame(
+    Uint8Array.from([...bytes(1, serviceHead), ...bytes(3, loginMessage)]),
+    CMD_HEARTBEAT,
+  )
+}
+
 export interface DebugLogin {
   readonly token: string
   /** The account the token belongs to; native exposes the same value as `login-id`. */
   readonly userId?: number
 }
 
-function readLoginResult(payload: Uint8Array): DebugLogin {
+/**
+ * Read the login answer out of one message payload, or `null` when the frame
+ * carries something else. A rejected login throws with the server's reason.
+ */
+export function readLoginResult(payload: Uint8Array): DebugLogin | null {
   const service = decode(payload)
+  const rspLoginApp = service.nested(3)?.nested(13)
+  if (!rspLoginApp) return null
+
   const code = Number(service.nested(1)?.first(8) ?? 0)
   if (code !== 0) {
     throw new Error(`登录失败: resultCode=${code} (${RESULT_MESSAGES.get(code) ?? '未知错误'})`)
   }
 
-  const rspLoginApp = service.nested(3)?.nested(13)
-  const token = rspLoginApp?.first(8)
+  const token = rspLoginApp.first(8)
   if (!(token instanceof Uint8Array) || token.length === 0) {
     throw new Error('服务器没有返回 token')
   }
   return {
     token: new TextDecoder().decode(token),
-    userId: Number(rspLoginApp?.nested(2)?.first(1)) || undefined,
+    userId: Number(rspLoginApp.nested(2)?.first(1)) || undefined,
   }
 }
 
@@ -237,19 +264,25 @@ export function loginForToken(
       merged.set(chunk, pending.length)
       pending = merged
 
-      while (pending.length >= HEADER_SIZE) {
+      while (pending.length >= LOGIN_HEADER_SIZE) {
         const total = new DataView(pending.buffer, pending.byteOffset).getInt32(0)
-        if (total < HEADER_SIZE || pending.length < total) return
-        const payload = pending.subarray(HEADER_SIZE, total)
+        if (total < LOGIN_HEADER_SIZE || pending.length < total) return
+        const payload = pending.subarray(LOGIN_HEADER_SIZE, total)
 
-        clearTimeout(timer)
-        socket.close(1000)
         try {
-          resolve(readLoginResult(payload))
+          const login = readLoginResult(payload)
+          if (login) {
+            clearTimeout(timer)
+            socket.close(1000)
+            resolve(login)
+            return
+          }
         } catch (error) {
-          reject(error instanceof Error ? error : new Error(String(error)))
+          fail(error instanceof Error ? error : new Error(String(error)))
+          return
         }
-        return
+        // A frame that is not the login answer (a kick notice, say) is skipped.
+        pending = pending.subarray(total)
       }
     })
   })

@@ -2,13 +2,13 @@ import { defineConfig } from 'vite-plus'
 
 export default defineConfig({
   pack: {
-    entry: ['src/index.ts', 'src/vois.ts', 'src/debug/index.ts'],
+    entry: ['src/index.ts', 'src/vois.ts', 'src/debug/index.ts', 'src/vite/index.ts'],
     dts: {
       tsgo: true,
     },
     exports: {
       customExports(pkgExports) {
-        for (const key of ['.', './vois', './debug']) {
+        for (const key of ['.', './vois', './debug', './vite']) {
           const entry = pkgExports[key]
           if (typeof entry === 'string') {
             pkgExports[key] = {

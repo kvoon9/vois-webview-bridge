@@ -200,9 +200,23 @@ if (isWebviewDebug()) enableDebugBridge()
 ```
 
 - `enableDebugBridge(credentials?)` — registers a bridge that is ready immediately. Its `get-page-params` answers static debug environment params (plus any params the local bridge was constructed with) and **never logs in**, so native-returned page params stay the first source of truth.
-- `getDebugAccessToken()` — the explicit fallback. Only when `get-page-params` had no `access-token` should a dev / debug-preview page call this; it logs in with the fixed debug account (or the credentials passed to `enableDebugBridge`) and resolves the token. Concurrent calls share one login, a success is reused, and a failure is forgotten so the next call retries.
+- `getDebugAccessToken()` — the explicit fallback. Only when `get-page-params` had no `access-token` should a dev / debug-preview page call this. It first reads the token a debug server minted (below), and only without one logs in with the fixed debug account (or the credentials passed to `enableDebugBridge`). Concurrent logins share one session, a success is reused, and a failure is forgotten so the next call retries.
 
-Gate both behind your own debug detection and never import this entry from shipped code paths.
+### Debug server token
+
+A browser cannot mint a usable token by itself: the app signs in over **plain TCP** on the gateway `POST /v2/gateway-server` assigns, and tokens minted on the WebSocket gateway are rejected by the `/v1` and `/v2` HTTP APIs with `31 授权失效`. Only Node can open that socket, so `@vois/webview-bridge/vite` mints it and the debug login reads it first:
+
+```ts
+import { voisBridgeAuth } from '@vois/webview-bridge/vite'
+
+export default defineConfig({
+  plugins: [voisBridgeAuth()],
+})
+```
+
+The plugin answers `GET /__vois-bridge/access-token` on dev and preview servers, minting on the assigned gateway and serving the token until its 10-minute ttl runs out. Options: `credentials`, `apiBase`, `appId`, `appKey`, `ttlMs`, `path`.
+
+Gate all of these behind your own debug detection and never import these entries from shipped code paths.
 
 ## Develop
 
