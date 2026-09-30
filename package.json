@@ -1,6 +1,6 @@
 {
   "name": "@vois/webview-bridge",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "JS → native WebView bridge protocol for Vois / Weila H5 pages (uniBridgeCall).",
   "keywords": [
     "bridge",
