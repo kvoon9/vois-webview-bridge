@@ -47,7 +47,7 @@
     "test": "vp test",
     "check": "vp check",
     "prepublishOnly": "vp run build",
-    "release": "bumpp && pnpm publish",
+    "release": "pnpm login && bumpp && pnpm publish",
     "dev:docs": "blume dev",
     "dev:playground": "pnpm --dir playground dev",
     "build:docs": "node scripts/build-docs.mjs",
