@@ -173,8 +173,8 @@ describe('createAccessTokenMinter', () => {
     const apiBase = await startGatewayApi(gateway.host, gateway.port)
     const minter = createAccessTokenMinter({ apiBase, ttlMs: 60_000 })
 
-    await expect(minter.get()).resolves.toBe('minted-token')
-    await expect(minter.get()).resolves.toBe('minted-token')
+    await expect(minter.get()).resolves.toEqual({ token: 'minted-token' })
+    await expect(minter.get()).resolves.toEqual({ token: 'minted-token' })
     expect(gateway.connections()).toBe(1)
   })
 
@@ -183,8 +183,8 @@ describe('createAccessTokenMinter', () => {
     const apiBase = await startGatewayApi(gateway.host, gateway.port)
     const minter = createAccessTokenMinter({ apiBase, ttlMs: 0 })
 
-    await expect(minter.get()).resolves.toBe('minted-token')
-    await expect(minter.get()).resolves.toBe('minted-token')
+    await expect(minter.get()).resolves.toEqual({ token: 'minted-token' })
+    await expect(minter.get()).resolves.toEqual({ token: 'minted-token' })
     expect(gateway.connections()).toBe(2)
   })
 
@@ -193,11 +193,11 @@ describe('createAccessTokenMinter', () => {
     const apiBase = await startGatewayApi(gateway.host, gateway.port)
     const minter = createAccessTokenMinter({ apiBase, ttlMs: 60_000 })
 
-    await expect(minter.get()).resolves.toBe('minted-token')
+    await expect(minter.get()).resolves.toEqual({ token: 'minted-token' })
     gateway.sockets[0]?.destroy()
     await new Promise((resolve) => setTimeout(resolve, 50))
 
-    await expect(minter.get()).resolves.toBe('minted-token')
+    await expect(minter.get()).resolves.toEqual({ token: 'minted-token' })
     expect(gateway.connections()).toBe(2)
   })
 
@@ -206,14 +206,14 @@ describe('createAccessTokenMinter', () => {
     const apiBase = await startGatewayApi(gateway.host, gateway.port)
     const minter = createAccessTokenMinter({ apiBase, ttlMs: 60_000 })
 
-    await expect(minter.get()).resolves.toBe('minted-token')
+    await expect(minter.get()).resolves.toEqual({ token: 'minted-token' })
     await expect(
       minter.login({ account: 'user-account', password: 'user-pass', countryCode: '86' }),
     ).resolves.toEqual({ token: 'minted-token', userId: undefined })
     gateway.sockets[1]?.destroy()
     await new Promise((resolve) => setTimeout(resolve, 50))
 
-    await expect(minter.get()).resolves.toBe('minted-token')
+    await expect(minter.get()).resolves.toEqual({ token: 'minted-token' })
     // The re-mint after the drop still signs in as the swapped account, not the default.
     const last = gateway.frames()[gateway.frames().length - 1]
     expect(last?.includes(Buffer.from('user-account'))).toBe(true)
@@ -288,14 +288,14 @@ async function requestThrough(
 }
 
 describe('voisBridgeAuth', () => {
-  test('answers the debug login with the minted token', async () => {
-    const gateway = await startGateway('plugin-token')
+  test('answers the debug login with the minted token and its account', async () => {
+    const gateway = await startGateway('plugin-token', 441)
     const apiBase = await startGatewayApi(gateway.host, gateway.port)
     const handler = middlewareOf(voisBridgeAuth({ apiBase }))
 
     await expect(requestThrough(handler, DEBUG_ACCESS_TOKEN_PATH)).resolves.toEqual({
       status: 200,
-      body: JSON.stringify({ token: 'plugin-token' }),
+      body: JSON.stringify({ token: 'plugin-token', userId: 441 }),
       handedOver: false,
     })
   })
@@ -328,7 +328,7 @@ describe('voisBridgeAuth login endpoint', () => {
     // A page that never logged in mints the configured account first.
     await expect(requestThrough(handler, DEBUG_ACCESS_TOKEN_PATH)).resolves.toMatchObject({
       status: 200,
-      body: JSON.stringify({ token: 'token-1' }),
+      body: JSON.stringify({ token: 'token-1', userId: 441 }),
     })
 
     const login = await requestThrough(handler, '/__vois-bridge/login', {
@@ -347,7 +347,7 @@ describe('voisBridgeAuth login endpoint', () => {
     // Every later read serves the logged-in session without a new connection.
     await expect(requestThrough(handler, DEBUG_ACCESS_TOKEN_PATH)).resolves.toMatchObject({
       status: 200,
-      body: JSON.stringify({ token: 'token-2' }),
+      body: JSON.stringify({ token: 'token-2', userId: 441 }),
     })
     expect(gateway.connections()).toBe(2)
   })

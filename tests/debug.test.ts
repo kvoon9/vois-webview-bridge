@@ -253,6 +253,61 @@ describe('loginWithCredentials', () => {
   })
 })
 
+describe('enableDebugBridge page params', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  /** A page that loaded after the login: nothing adopted, only the server knows. */
+  test('answers login-id from the debug server session', async () => {
+    enableDebugBridge()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ token: 'served-token', userId: 1541034 }),
+      }),
+    )
+
+    const onReady = vi.fn()
+    onBridgeReady(onReady)
+    const bridge = onReady.mock.calls[0]![0] as WebviewBridge
+    await expect(
+      bridge.request('get-page-params', { page: 'test', params: ['login-id'] }),
+    ).resolves.toEqual({ errcode: 0, errmsg: '', data: { 'login-id': '1541034' } })
+    // The whole-set read serves it too, alongside the debug environment defaults.
+    await expect(bridge.request('get-page-params', { page: 'test', params: [] })).resolves.toEqual({
+      errcode: 0,
+      errmsg: '',
+      data: {
+        'device-type': 'debug',
+        theme: 'light',
+        lang: 'zh-CN',
+        'login-id': '1541034',
+      },
+    })
+  })
+
+  test('leaves a read that cannot see login-id to the defaults', async () => {
+    enableDebugBridge()
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ token: 'served-token', userId: 1541034 }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const onReady = vi.fn()
+    onBridgeReady(onReady)
+    const bridge = onReady.mock.calls[0]![0] as WebviewBridge
+    await expect(
+      bridge.request('get-page-params', { page: 'test', params: ['theme'] }),
+    ).resolves.toEqual({ errcode: 0, errmsg: '', data: { theme: 'light' } })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
 describe('enableDebugBridge', () => {
   test('hands over a bridge immediately whose page-param reads never log in', async () => {
     setUserAgent(DESKTOP_UA)

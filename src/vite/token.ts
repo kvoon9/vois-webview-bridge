@@ -50,15 +50,18 @@ export interface AccessTokenMinterOptions {
 }
 
 export interface AccessTokenMinter {
-  /** A usable token, minting or re-minting when the session behind it is gone. */
-  get(): Promise<string>
+  /**
+   * The live session: a usable token plus the account it belongs to, minting or
+   * re-minting when the session behind it is gone.
+   */
+  get(): Promise<GatewaySessionInfo>
   /**
    * Sign in as a different account right away and resolve with that session.
    *
    * The credentials become the minter's own, so every later re-mint (TTL, dropped
    * socket) stays on this account until another `login` swaps it again.
    */
-  login(credentials: DebugCredentials): Promise<{ token: string; userId?: number }>
+  login(credentials: DebugCredentials): Promise<GatewaySessionInfo>
 }
 
 export interface GatewaySession {
@@ -72,6 +75,9 @@ export interface GatewaySession {
    */
   socket: Socket
 }
+
+/** A session without its socket: everything a token consumer needs to know. */
+export type GatewaySessionInfo = Omit<GatewaySession, 'socket'>
 
 interface GatewayResponse {
   errcode?: number
@@ -130,7 +136,7 @@ export function loginOverTcp(
       socket.destroy()
       reject(error)
     }
-    const succeed = (session: Omit<GatewaySession, 'socket'>): void => {
+    const succeed = (session: GatewaySessionInfo): void => {
       if (settled) return
       settled = true
       socket.setTimeout(0)
@@ -232,14 +238,19 @@ export function createAccessTokenMinter(options: AccessTokenMinterOptions = {}):
     return pending
   }
 
+  const info = ({ token, userId }: GatewaySession): GatewaySessionInfo => ({ token, userId })
+
   return {
-    get(): Promise<string> {
-      if (session && session.expiresAt > Date.now()) return Promise.resolve(session.token)
-      return run().then((opened) => opened.token)
+    get(): Promise<GatewaySessionInfo> {
+      if (session && session.expiresAt > Date.now()) return Promise.resolve(info(session))
+      return run().then(info)
     },
-    login(next: DebugCredentials): Promise<{ token: string; userId?: number }> {
+    async login(next: DebugCredentials): Promise<GatewaySessionInfo> {
+      // A mint already in flight belongs to the previous account; letting it settle
+      // first keeps its session from answering this call or overwriting the new one.
+      await pending?.catch(() => {})
       credentials = next
-      return run().then(({ token, userId }) => ({ token, userId }))
+      return run().then(info)
     },
   }
 }

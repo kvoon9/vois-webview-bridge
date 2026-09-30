@@ -161,7 +161,7 @@ export function voisBridgeAuth(options: VoisBridgeAuthOptions = {}): VitePluginL
     }
 
     minter.get().then(
-      (token) => respond(response, 200, { token }),
+      ({ token, userId }) => respond(response, 200, { token, userId }),
       (error: unknown) => {
         const message = error instanceof Error ? error.message : String(error)
         console.warn(`[vois-webview-bridge] 铸造 access token 失败: ${message}`)

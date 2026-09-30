@@ -63,6 +63,12 @@ export function resetDebugPageParams(): void {
 }
 
 /**
+ * Params the debug server's session owns, read when a page-param answer needs
+ * them. Async on purpose: the answer waits for them rather than going without.
+ */
+export type DebugParamSource = () => Promise<Record<string, string>>
+
+/**
  * A `NativeCall` backed by static params instead of a WebView, so the page cannot
  * tell the difference: `get-page-params` answers exactly what native would, and
  * anything else is a no-op rather than an error.
@@ -72,11 +78,18 @@ export function resetDebugPageParams(): void {
  * tests pin the native-first source), while the fixed-account login is reached only
  * through `getDebugAccessToken`.
  *
+ * `sessionParams` is for params only the server knows. A read that can see one of
+ * its names waits for it; an adopted value always wins, since it is what this page
+ * signed in as.
+ *
  * Unknown protocols are ignored on purpose. A debug session has no native side to
  * close a page or start a payment, and throwing would turn a page's normal flow
  * into a crash.
  */
-export function createLocalBridge(pageParams: Record<string, string> = {}): NativeCall {
+export function createLocalBridge(
+  pageParams: Record<string, string> = {},
+  sessionParams: DebugParamSource = async () => ({}),
+): NativeCall {
   const pool: Record<string, string> = { ...STATIC_PARAMS, ...debugParams, ...pageParams }
   livePool = pool
 
@@ -91,8 +104,21 @@ export function createLocalBridge(pageParams: Record<string, string> = {}): Nati
     const names = Array.isArray(asked)
       ? asked.filter((name): name is string => typeof name === 'string')
       : []
-    const keys = names.length > 0 ? names : Object.keys(pool)
 
-    respond(JSON.stringify({ errcode: 0, errmsg: '', data: pick(pool, keys) }))
+    const answer = (source: Record<string, string> = pool): void => {
+      const keys = names.length > 0 ? names : Object.keys(source)
+      respond(JSON.stringify({ errcode: 0, errmsg: '', data: pick(source, keys) }))
+    }
+
+    // `login-id` belongs to the account the server session holds, so a read that
+    // could include it waits for that answer; any other read is the pool's alone.
+    if (names.length > 0 && !names.includes('login-id')) {
+      answer()
+      return
+    }
+    sessionParams().then(
+      (session) => answer({ ...session, ...pool }),
+      () => answer(),
+    )
   }
 }

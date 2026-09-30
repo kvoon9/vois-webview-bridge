@@ -10,8 +10,15 @@ let fallbackCredentials: DebugCredentials = DEFAULT_DEBUG_CREDENTIALS
 /** Session getter shared by every `getDebugAccessToken` call. */
 let fallbackLogin: (() => Promise<DebugLogin>) | null = null
 
+/** The account a debug server signed in as: the token plus the id native calls `login-id`. */
+interface ServedSession {
+  token: string
+  userId?: number
+}
+
 /**
- * Read the token a debug server minted (see `@vois/webview-bridge/vite`).
+ * Read the token a debug server minted (see `@vois/webview-bridge/vite`), freshly
+ * every time: the server re-mints (TTL, dropped socket) and only it knows when.
  *
  * The login below speaks the WebSocket gateway, whose tokens the `/v1` and `/v2`
  * HTTP APIs reject with `31 授权失效`; the app signs in on the TCP gateway its API
@@ -19,17 +26,38 @@ let fallbackLogin: (() => Promise<DebugLogin>) | null = null
  * mints one there, so every call here reads a current token. No plugin, or a failed
  * fetch, leaves the account login in charge.
  */
-async function readServerToken(): Promise<string | null> {
+async function readServedSession(): Promise<ServedSession | null> {
   try {
     const response = await fetch(DEBUG_ACCESS_TOKEN_PATH, {
       headers: { accept: 'application/json' },
     })
     if (!response.ok) return null
-    const body = (await response.json()) as { token?: unknown }
-    return typeof body.token === 'string' && body.token.length > 0 ? body.token : null
+    const body = (await response.json()) as { token?: unknown; userId?: unknown }
+    if (typeof body.token !== 'string' || body.token.length === 0) return null
+    return {
+      token: body.token,
+      userId: typeof body.userId === 'number' ? body.userId : undefined,
+    }
   } catch {
     return null
   }
+}
+
+/**
+ * The session as page-param reads see it: read once per page. A page-param read
+ * happens milliseconds after boot, so the identity behind the token cannot be
+ * re-fetched per read; a login inside the page refreshes this cache instead.
+ */
+let sessionForParams: Promise<ServedSession | null> | null = null
+
+function servedSessionForParams(): Promise<ServedSession | null> {
+  return (sessionForParams ??= readServedSession())
+}
+
+/** The session's account as page params, or empty when there is no session. */
+async function servedSessionParams(): Promise<Record<string, string>> {
+  const session = await servedSessionForParams()
+  return session?.userId === undefined ? {} : { 'login-id': String(session.userId) }
 }
 
 /**
@@ -45,8 +73,8 @@ async function readServerToken(): Promise<string | null> {
  * the page's life, and a failure is forgotten so the next call retries.
  */
 export async function getDebugAccessToken(): Promise<string> {
-  const served = await readServerToken()
-  if (served) return served
+  const served = await readServedSession()
+  if (served) return served.token
   fallbackLogin ??= createDebugLoginGetter(fallbackCredentials)
   return fallbackLogin().then((login) => login.token)
 }
@@ -84,7 +112,11 @@ export async function loginWithCredentials(credentials: DebugCredentials): Promi
   }
   // Native answers `login-id` with exactly this id, and pages key on it; adopting
   // it here keeps every later page-param read correct without URL surgery.
-  if (login.userId !== undefined) setDebugPageParams({ 'login-id': String(login.userId) })
+  if (login.userId !== undefined) {
+    setDebugPageParams({ 'login-id': String(login.userId) })
+    // The page-param cache predates this login, so it still holds the old account.
+    sessionForParams = Promise.resolve({ token: login.token, userId: login.userId })
+  }
   return login
 }
 
@@ -110,5 +142,10 @@ export async function loginWithCredentials(credentials: DebugCredentials): Promi
 export function enableDebugBridge(credentials: DebugCredentials = DEFAULT_DEBUG_CREDENTIALS): void {
   fallbackCredentials = credentials
   fallbackLogin = createDebugLoginGetter(credentials)
-  setDebugBridge(() => createLocalBridge())
+  // A fresh registration starts a fresh session read; the cached one answered for
+  // whatever was signed in at the time.
+  sessionForParams = null
+  // The session is the server's, so the page asks it who it is; without a debug
+  // server the source comes back empty and the pool alone answers.
+  setDebugBridge(() => createLocalBridge({}, servedSessionParams))
 }
